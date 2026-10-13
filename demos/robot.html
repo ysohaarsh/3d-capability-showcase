@@ -200,13 +200,14 @@ try {
   const rockMat = new THREE.MeshStandardMaterial({ color: 0x6b7385, flatShading: true, roughness: 1 });
   const crateMat = new THREE.MeshStandardMaterial({ color: 0xb58650, flatShading: true, roughness: 0.9 });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x6e4d2b, flatShading: true, roughness: 0.9 });
-  function place(x, z, r) { colliders.push({ x, z, r }); }
+  // h: top height; stand: crates can be landed on, rocks are always solid walls
+  function place(x, z, r, h = 9, stand = false) { colliders.push({ x, z, r, h, stand }); }
   for (let i = 0; i < 18; i++) {
     const a = rnd() * Math.PI * 2, d = 6 + rnd() * 20, x = Math.cos(a) * d, z = Math.sin(a) * d;
     const s = 0.5 + rnd() * 1.1;
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), rockMat);
     m.position.set(x, s * 0.55, z); m.scale.y = 0.7 + rnd() * 0.4; m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
-    m.castShadow = m.receiveShadow = true; scene.add(m); place(x, z, s * 0.9);
+    m.castShadow = m.receiveShadow = true; scene.add(m); place(x, z, s * 0.9, s * (0.55 + m.scale.y));
   }
   for (let i = 0; i < 9; i++) {
     const a = rnd() * Math.PI * 2, d = 5 + rnd() * 16, x = Math.cos(a) * d, z = Math.sin(a) * d;
@@ -216,8 +217,10 @@ try {
       const t = new THREE.Mesh(new THREE.BoxGeometry(w * s, h * s, d2 * s), trimMat); t.position.set(px * s, py * s, pz * s); t.castShadow = true; grp.add(t);
     }
     grp.add(box); box.castShadow = box.receiveShadow = true;
-    grp.position.set(x, s / 2, z); grp.rotation.y = rnd() * 3; scene.add(grp); place(x, z, s * 0.78);
-    if (i % 3 === 0) { const b2 = box.clone(); b2.scale.setScalar(0.6); b2.position.set(0, s * 0.8, 0); grp.add(b2); }
+    grp.position.set(x, s / 2, z); grp.rotation.y = rnd() * 3; scene.add(grp);
+    const stacked = i % 3 === 0;
+    place(x, z, s * 0.78, stacked ? s * 1.1 : s, !stacked);
+    if (stacked) { const b2 = box.clone(); b2.scale.setScalar(0.6); b2.position.set(0, s * 0.8, 0); grp.add(b2); }
   }
 
   // ---- robot ----
@@ -290,7 +293,7 @@ try {
     for (let k = 0; k < n; k++) {
       const d = dust[dustI++ % dust.length];
       d.life = 1; d.vy = 0.5 + Math.random() * 0.4; d.m.visible = true;
-      d.m.position.set(x + (Math.random() - .5) * .3, 0.08, z + (Math.random() - .5) * .3);
+      d.m.position.set(x + (Math.random() - .5) * .3, st.floor + 0.08, z + (Math.random() - .5) * .3);
       d.m.userData.vx = (Math.random() - .5) * 0.8; d.m.userData.vz = (Math.random() - .5) * 0.8;
     }
   }
@@ -309,7 +312,7 @@ try {
   addEventListener('blur', () => keys.clear());
 
   // ---- state ----
-  const st = { vx: 0, vz: 0, yaw: 0, y: 0, vy: 0, air: 0, land: 0, move: 0, run: 0, wave: 0, phase: 0, lastStep: 0 };
+  const st = { vx: 0, vz: 0, yaw: 0, y: 0, vy: 0, floor: 0, airborne: false, air: 0, land: 0, move: 0, run: 0, wave: 0, phase: 0, lastStep: 0 };
   const lerp = THREE.MathUtils.lerp, damp = THREE.MathUtils.damp;
   const fwd = new THREE.Vector3(), right = new THREE.Vector3(), wish = new THREE.Vector3();
   const tgt = new THREE.Vector3(), delta = new THREE.Vector3();
@@ -325,7 +328,7 @@ try {
     const has = wish.lengthSq() > 0;
     if (has) wish.normalize();
     const maxSp = running ? 5.6 : 2.6;
-    const acc = st.y > 0 ? 4 : 10;
+    const acc = st.airborne ? 4 : 10;
     st.vx = damp(st.vx, wish.x * (has ? maxSp : 0), acc, dt);
     st.vz = damp(st.vz, wish.z * (has ? maxSp : 0), acc, dt);
     const sp = Math.hypot(st.vx, st.vz);
@@ -335,19 +338,25 @@ try {
       st.yaw += d * (1 - Math.exp(-10 * dt));
     }
     root.position.x += st.vx * dt; root.position.z += st.vz * dt;
+    // props block the robot below their top; above a crate's top it can pass over and land on it
+    st.floor = 0;
     for (const c of colliders) {
       const dx = root.position.x - c.x, dz = root.position.z - c.z, rr = c.r + 0.3, dd = Math.hypot(dx, dz);
-      if (dd < rr && st.y < 0.6) { root.position.x = c.x + dx / dd * rr; root.position.z = c.z + dz / dd * rr; }
+      if (dd >= rr) continue;
+      if (c.stand && st.y >= c.h - 0.05) { if (dd < c.r + 0.1) st.floor = Math.max(st.floor, c.h); continue; }
+      root.position.x = c.x + dx / dd * rr; root.position.z = c.z + dz / dd * rr;
     }
-    // jump
-    if (jumpQueued && st.y <= 0.001) { st.vy = 6.5; st.y = 0.002; }
+    // jump + gravity against the current floor (ground or a crate top); walking off an edge falls
+    const grounded = st.y <= st.floor + 0.001 && st.vy <= 0;
+    if (jumpQueued && grounded) st.vy = 6.5;
     jumpQueued = false;
-    if (st.y > 0) {
+    if (st.y > st.floor + 0.001 || st.vy > 0) {
       st.vy -= 18 * dt; st.y += st.vy * dt;
-      if (st.y <= 0) { st.y = 0; st.land = 1; st.vy = 0; puff(root.position.x, root.position.z, 5); }
-    }
+      if (st.y <= st.floor && st.vy <= 0) { st.y = st.floor; st.land = 1; st.vy = 0; puff(root.position.x, root.position.z, 5); }
+    } else st.y = st.floor;
+    st.airborne = st.y > st.floor + 0.001;
     st.land = Math.max(0, st.land - dt * 3.5);
-    st.air = damp(st.air, st.y > 0 ? 1 : 0, 14, dt);
+    st.air = damp(st.air, st.airborne ? 1 : 0, 14, dt);
     root.position.y = st.y; root.rotation.y = st.yaw;
     const sy = 1 + THREE.MathUtils.clamp(st.vy * 0.03, -0.12, 0.2) - 0.22 * Math.sin(st.land * Math.PI * 0.5) * st.land;
     body.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
@@ -484,7 +493,7 @@ try {
   }
 
   function hud(dt, t) {
-    const s = st.y > 0.01 ? 'JUMP' : waveT > 0.05 ? 'WAVE' : st.move > 0.5 ? (st.run > 0.5 ? 'RUN' : 'WALK') : 'IDLE';
+    const s = st.airborne ? 'JUMP' : waveT > 0.05 ? 'WAVE' : st.move > 0.5 ? (st.run > 0.5 ? 'RUN' : 'WALK') : 'IDLE';
     if (s !== curState) { curState = s; elState.textContent = s; elState.dataset.s = s; }
     energy = THREE.MathUtils.clamp(energy + (s === 'RUN' ? -8 : s === 'WALK' ? -1.5 : s === 'IDLE' ? 6 : 0) * dt, 0, 100);
     elFill.style.width = energy + '%'; elEnV.textContent = Math.round(energy); elEn.classList.toggle('low', energy < 25);

@@ -130,8 +130,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const VERT = /* glsl */`
-uniform float uTime;
-uniform float uSpeed;
+uniform float uPhase;
 uniform float uSize;
 uniform float uPixelRatio;
 attribute float aScale;
@@ -141,7 +140,7 @@ void main(){
   vec3 p = position;
   float dist = length(p.xz);
   // differential rotation: inner stars orbit faster (angle ~ 1/distance)
-  float a = uTime * uSpeed / (0.35 + dist);
+  float a = uPhase / (0.35 + dist);
   float c = cos(a), s = sin(a);
   p.xz = vec2(p.x * c - p.z * s, p.x * s + p.z * c);
   p += aRandomness;
@@ -187,12 +186,14 @@ try {
 
   const shared = {
     uTime: { value: 0 }, uSpeed: { value: P.rotationSpeed },
+    // accumulated rotation (sum of dt * eased speed), so speed changes never make stars jump
+    uPhase: { value: 0 }, speedNow: P.rotationSpeed,
     uPixelRatio: { value: PR }
   };
   const makeMat = (size, alpha, speedUniform) => new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG,
     uniforms: {
-      uTime: shared.uTime, uSpeed: speedUniform || { value: 0 }, uPixelRatio: shared.uPixelRatio,
+      uPhase: speedUniform ? shared.uPhase : { value: 0 }, uPixelRatio: shared.uPixelRatio,
       uSize: { value: size }, uAlpha: { value: alpha }
     },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true
@@ -384,6 +385,8 @@ try {
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     shared.uTime.value += dt;
+    shared.speedNow += (shared.uSpeed.value - shared.speedNow) * Math.min(1, dt * 2.5);
+    shared.uPhase.value += dt * shared.speedNow;
     if (P.drift && performance.now() - lastInput > 2500) {
       // slow orbit + gentle breathing in elevation
       const off = camera.position.clone().sub(controls.target);

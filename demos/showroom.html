@@ -108,7 +108,7 @@
   .s-neon{background:radial-gradient(circle,#effffc 0,#00ffd5 28%,#00a58c 58%,#02332d 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14),0 0 18px rgba(0,255,213,.45)}
 
   /* grid axis labels (CSS2D) */
-  .lbl{font-family:var(--sans);font-size:9.5px;font-weight:400;letter-spacing:.26em;text-transform:uppercase;color:var(--gold2);
+  .lbl{transition:opacity .2s;font-family:var(--sans);font-size:9.5px;font-weight:400;letter-spacing:.26em;text-transform:uppercase;color:var(--gold2);
     padding:0 0 3px;border-bottom:1px solid var(--line);white-space:nowrap;pointer-events:none;background:none}
   .lbl.sm{font-size:9px;color:var(--ink3);border:0;letter-spacing:.1em;padding:0}
 
@@ -260,8 +260,19 @@ try {
   };
   const label = (text, x, y, z, small = false) => {
     const d = document.createElement('div'); d.className = 'lbl' + (small ? ' sm' : ''); d.textContent = text;
-    const o = new CSS2DObject(d); o.position.set(x, y, z); scene.add(o); return o;
+    const o = new CSS2DObject(d); o.position.set(x, y, z); scene.add(o); allLabels.push(o); return o;
   };
+  // hide a label when a mesh (other than the floor) sits between it and the camera
+  const allLabels = [], ray = new THREE.Raycaster(), _lp = new THREE.Vector3(), _dir = new THREE.Vector3();
+  let occluders = null;
+  function hideOccludedLabels() {
+    occluders ??= scene.children.filter(o => o.isMesh && o !== floor);
+    for (const l of allLabels) {
+      l.getWorldPosition(_lp); _dir.subVectors(_lp, camera.position); const len = _dir.length();
+      ray.set(camera.position, _dir.divideScalar(len)); ray.far = len - 0.05;
+      l.element.style.opacity = ray.intersectObjects(occluders, false).length ? '0' : '';
+    }
+  }
 
   // ---------- 7x7 material grid ----------
   const N = 7, sp = 0.82, rad = 0.34, gx = -3.7, gz = -1.5, gy = 0.55;
@@ -494,6 +505,7 @@ try {
     ring.rotation.z += dt * 0.2;
     controls.update();
     composer.render();
+    hideOccludedLabels();
     labelRenderer.render(scene, camera);
     frames++;
     const now = performance.now();

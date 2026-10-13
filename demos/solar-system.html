@@ -102,7 +102,7 @@
   #err:empty{display:none}
 
   #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-  .lbl{font-family:var(--serif);font-variant:small-caps;font-weight:600;letter-spacing:.07em;color:var(--ivory);font-size:14px;padding:0 1px 1px;border-bottom:1px solid var(--brass);transform:translateY(-22px);white-space:nowrap;text-shadow:0 0 5px #000,0 1px 2px #000}
+  .lbl{transition:opacity .2s;font-family:var(--serif);font-variant:small-caps;font-weight:600;letter-spacing:.07em;color:var(--ivory);font-size:14px;padding:0 1px 1px;border-bottom:1px solid var(--brass);transform:translateY(-22px);white-space:nowrap;text-shadow:0 0 5px #000,0 1px 2px #000}
 
   @media (min-width:760px){
     #card{position:fixed;right:12px;top:86px;width:310px}
@@ -322,6 +322,22 @@ try {
     return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
   }
   const labelObjs = [];
+  // hide a label when the Sun or any planet/moon sits between it and the camera (ray vs. sphere)
+  const _lp = new THREE.Vector3(), _oc = new THREE.Vector3(), _dir = new THREE.Vector3(), _wp = new THREE.Vector3();
+  function hideOccludedLabels() {
+    const occluders = [{ obj: sun, r: sunR }, ...planetMeshes.map(m => ({ obj: m, r: m.geometry.parameters.radius }))];
+    for (const l of labelObjs) {
+      l.getWorldPosition(_lp);
+      _dir.subVectors(_lp, camera.position); const len = _dir.length(); _dir.divideScalar(len);
+      let hidden = false;
+      for (const o of occluders) {
+        o.obj.getWorldPosition(_wp); _oc.subVectors(_wp, camera.position);
+        const t = _oc.dot(_dir); if (t <= 0 || t >= len) continue;          // sphere not between camera and label
+        if (_oc.lengthSq() - t * t < o.r * o.r) { hidden = true; break; }  // ray passes through the sphere
+      }
+      l.element.style.opacity = hidden ? '0' : '';
+    }
+  }
 
   defs.forEach((def, i) => {
     // scene graph: orbitPivot (inclination) -> orbitRot (orbital angle) -> holder (translate) -> tilt (axial) -> mesh (spin)
@@ -469,6 +485,7 @@ try {
     } else controls.minDistance = 1.5;
     controls.update();
     renderer.render(scene, camera);
+    hideOccludedLabels();
     labelRenderer.render(scene, camera);
 
     frames++; acc += dt;
