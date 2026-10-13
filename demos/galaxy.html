@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="darkreader-lock">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NGC-SIM Spiral Galaxy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&family=Manrope:wght@300;400;500&family=Syne:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#05060a;--ink:#c9ced9;--dim:#6f7788;--line:rgba(190,200,225,.22);--acc:#b9a8ff;--accd:rgba(185,168,255,.16);
+    --disp:'Syne','Michroma','Arial Black',sans-serif;--sans:'Manrope',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:300 12px/1.5 var(--sans);overflow:hidden}
+  canvas{display:block}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+  :focus-visible{outline:1px solid var(--acc);outline-offset:3px}
+  .fr{position:fixed;z-index:5;--c:var(--acc);
+    background:
+      linear-gradient(var(--c),var(--c)) 0 0/9px 1px,linear-gradient(var(--c),var(--c)) 0 0/1px 9px,
+      linear-gradient(var(--c),var(--c)) 100% 0/9px 1px,linear-gradient(var(--c),var(--c)) 100% 0/1px 9px,
+      linear-gradient(var(--c),var(--c)) 0 100%/9px 1px,linear-gradient(var(--c),var(--c)) 0 100%/1px 9px,
+      linear-gradient(var(--c),var(--c)) 100% 100%/9px 1px,linear-gradient(var(--c),var(--c)) 100% 100%/1px 9px;
+    background-repeat:no-repeat}
+  /* instrument decoration */
+  #grid{position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:120px 120px;background-position:center;
+    -webkit-mask:radial-gradient(circle at center,transparent 0,#000 95%);mask:radial-gradient(circle at center,transparent 0,#000 95%);opacity:.12}
+  #ret{position:fixed;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;pointer-events:none;z-index:2;opacity:.55;
+    background:linear-gradient(var(--acc),var(--acc)) 50% 0/1px 14px no-repeat,linear-gradient(var(--acc),var(--acc)) 50% 100%/1px 14px no-repeat,
+      linear-gradient(var(--acc),var(--acc)) 0 50%/14px 1px no-repeat,linear-gradient(var(--acc),var(--acc)) 100% 50%/14px 1px no-repeat;
+    border:1px solid var(--line);border-radius:50%}
+  #ret::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px;background:var(--acc);border-radius:50%}
+  #scale{position:fixed;left:28px;bottom:30px;z-index:4;font:300 10px var(--mono);color:var(--dim);letter-spacing:.12em}
+  #scale b{display:block;width:96px;height:7px;border:1px solid var(--ink);border-top:0;margin-bottom:5px;opacity:.7}
+  /* catalogue block */
+  #info{top:20px;left:20px;padding:16px 20px;max-width:340px}
+  #info .cat{font:300 10px var(--mono);letter-spacing:.2em;color:var(--acc);text-transform:uppercase}
+  #info h1{font:700 17px/1.2 var(--disp);letter-spacing:.06em;margin:6px 0 2px;color:#eef0f7;text-transform:uppercase}
+  #info h1 span{font-weight:500;color:var(--dim)}
+  #info .tests{color:var(--dim);font-size:11px;margin:6px 0 12px;max-width:290px}
+  #info .stats{display:flex;gap:22px;font:300 11px var(--mono);color:var(--dim);border-top:1px solid var(--line);padding-top:9px}
+  #info .stats b{display:block;font-weight:400;font-size:15px;color:var(--ink);letter-spacing:.02em}
+  #info .hint{margin-top:10px;font-size:10px;color:var(--dim);letter-spacing:.04em}
+  #gal{display:inline-block;margin-top:10px;font:300 10px var(--mono);letter-spacing:.16em;color:var(--ink);text-decoration:none;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:2px;transition:color .2s,border-color .2s}
+  #gal:hover{color:var(--acc);border-color:var(--acc)}
+  #err{margin-top:10px;color:#ff9b9b;font:300 11px var(--mono);white-space:pre-wrap;max-width:290px}
+  /* drawer toggle */
+  #dtoggle{position:fixed;top:20px;right:20px;z-index:9;display:flex;align-items:center;gap:10px;padding:9px 12px;font:300 10px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
+  #dtoggle kbd{font:400 10px var(--mono);border:1px solid var(--line);padding:0 5px;color:var(--acc)}
+  #dtoggle:hover{color:var(--acc)}
+  /* drawer */
+  #drawer{position:fixed;z-index:8;top:0;right:0;bottom:0;width:310px;padding:68px 26px 24px;overflow-y:auto;
+    background:linear-gradient(270deg,rgba(5,6,10,.92),rgba(5,6,10,.7));border-left:1px solid var(--line);
+    transform:translateX(100%);transition:transform .45s cubic-bezier(.2,.7,.2,1),visibility .45s;visibility:hidden;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  #drawer.open{transform:none;visibility:visible}
+  #drawer h2{font:500 10px var(--mono);letter-spacing:.3em;color:var(--dim);margin:0 0 4px}
+  .grp{margin-top:22px}
+  .grp h3{font:700 11px var(--disp);letter-spacing:.22em;color:var(--acc);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+  .grp h3::after{content:"";flex:1;height:1px;background:var(--line)}
+  .row{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;padding:5px 0}
+  .row:has(input[type=range]){grid-template-areas:"l v" "s s"}
+  .lab{font-size:12px;color:var(--ink);grid-area:l}
+  .val{font:300 11px var(--mono);color:var(--dim);grid-area:v;text-align:right;font-variant-numeric:tabular-nums}
+  .row:not(:has(input[type=range])) .val{grid-column:2;grid-row:1;margin-right:34px;position:absolute;display:none}
+  .row:has(.sw){grid-template-columns:1fr auto auto}
+  .row:has(.sw) .val{display:block;position:static;margin:0}
+  .row:not(:has(input[type=range]))>*{grid-area:auto}
+  input[type=range]{grid-area:s;width:100%;height:18px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:linear-gradient(90deg,var(--acc) var(--p,0),var(--line) var(--p,0))}
+  input[type=range]::-moz-range-track{height:1px;background:var(--line)}
+  input[type=range]::-moz-range-progress{height:1px;background:var(--acc)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;margin-top:-4px;background:var(--bg);border:1px solid var(--acc);transform:rotate(45deg);transition:background .15s}
+  input[type=range]::-moz-range-thumb{width:8px;height:8px;background:var(--bg);border:1px solid var(--acc);border-radius:0;transform:rotate(45deg)}
+  input[type=range]:hover::-webkit-slider-thumb,input[type=range]:focus-visible::-webkit-slider-thumb{background:var(--acc)}
+  input[type=range]:focus-visible{outline:1px solid var(--acc);outline-offset:2px}
+  .sw{position:relative;width:22px;height:22px;border:1px solid var(--ink);padding:3px;background-clip:content-box!important;display:block}
+  .sw input{position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);opacity:0;cursor:pointer;border:0;padding:0}
+  .sw:focus-within{outline:1px solid var(--acc);outline-offset:3px}
+  .tog{font:400 10px var(--mono);letter-spacing:.2em;padding:3px 10px;border:1px solid var(--line);color:var(--dim);min-width:52px}
+  .tog[aria-checked=true]{color:var(--bg);background:var(--acc);border-color:var(--acc)}
+  /* presets */
+  #chips-wrap{position:fixed;z-index:6;left:50%;bottom:24px;transform:translateX(-50%);max-width:calc(100vw - 40px);padding:12px 16px}
+  #chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  #chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;display:flex;align-items:baseline;gap:8px;padding:7px 14px;border:1px solid var(--line);font:400 11px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);white-space:nowrap;transition:border-color .2s,background .2s,color .2s}
+  .chip i{font:300 9px var(--mono);font-style:normal;color:var(--dim)}
+  .chip:hover{border-color:var(--acc);background:var(--accd)}
+  .chip[aria-pressed=true]{border-color:var(--acc);color:#fff;background:var(--accd)}
+  .chip[aria-pressed=true] i{color:var(--acc)}
+  @media (max-width:700px){
+    #info{top:12px;left:12px;padding:12px 14px;max-width:calc(100vw - 150px)}
+    #info .tests,#info .hint{display:none}
+    #info h1{font-size:13px}
+    #dtoggle{top:12px;right:12px}
+    #dtoggle .t{display:none}
+    #drawer{top:auto;left:0;width:100%;height:auto;max-height:58vh;padding:22px 20px 20px;border-left:0;border-top:1px solid var(--line);
+      background:rgba(5,6,10,.94);transform:translateY(100%)}
+    #chips-wrap{bottom:12px;left:12px;right:12px;transform:none;max-width:none;padding:8px}
+    #scale{left:16px;bottom:78px}
+    #ret{width:60px;height:60px;margin:-30px 0 0 -30px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"}}</script>
+</head>
+<body>
+<div id="grid"></div><div id="ret"></div>
+<div id="info" class="fr">
+  <div class="cat">NGC-SIM 150K &middot; Cat. Spiral</div>
+  <h1>Spiral Galaxy <span>/ <span id="desig">Milky Way</span></span></h1>
+  <div class="tests">Tests: GPU buffers, custom shaders, additive blending, large-count performance</div>
+  <div class="stats"><div>PARTICLES<b id="cnt">0</b></div><div>FPS<b id="fps">--</b></div></div>
+  <div class="hint">Drag orbit &middot; Wheel zoom &middot; Right-drag pan</div>
+  <a id="gal" href="../index.html">&larr; Gallery</a>
+  <div id="err" hidden></div>
+</div>
+<button id="dtoggle" class="fr" type="button" aria-controls="drawer" aria-expanded="true" aria-keyshortcuts="P"><span class="t">Parameters</span><kbd>P</kbd></button>
+<aside id="drawer" aria-label="Parameters"><h2>PARAMETERS</h2><div id="dbody"></div></aside>
+<div id="scale"><b></b>10 kly</div>
+<nav id="chips-wrap" class="fr" aria-label="Presets"><div id="chips"></div></nav>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const VERT = /* glsl */`
+uniform float uTime;
+uniform float uSpeed;
+uniform float uSize;
+uniform float uPixelRatio;
+attribute float aScale;
+attribute vec3 aRandomness;
+varying vec3 vColor;
+void main(){
+  vec3 p = position;
+  float dist = length(p.xz);
+  // differential rotation: inner stars orbit faster (angle ~ 1/distance)
+  float a = uTime * uSpeed / (0.35 + dist);
+  float c = cos(a), s = sin(a);
+  p.xz = vec2(p.x * c - p.z * s, p.x * s + p.z * c);
+  p += aRandomness;
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+  gl_PointSize = uSize * aScale * uPixelRatio * (1.0 / -mv.z);
+  vColor = color;
+}`;
+const FRAG = /* glsl */`
+uniform float uAlpha;
+varying vec3 vColor;
+void main(){
+  float d = length(gl_PointCoord - 0.5);
+  if (d > 0.5) discard;
+  float core = pow(1.0 - d * 2.0, 3.0);
+  float glow = exp(-d * 9.0) * 0.6;
+  float k = (core + glow) * uAlpha;
+  gl_FragColor = vec4(vColor * k, k);
+}`;
+
+const fpsEl = document.getElementById('fps'), cntEl = document.getElementById('cnt');
+try {
+  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  const PR = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(PR);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x05060a);
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 200);
+  camera.position.set(4.5, 3.2, 6);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.06;
+  controls.minDistance = 0.8; controls.maxDistance = 40;
+
+  const P = {
+    count: 150000, size: 28, radius: 5, branches: 4, spin: 1.1,
+    randomness: 0.45, randomnessPower: 3,
+    insideColor: '#ff8a3d', outsideColor: '#4a6bff',
+    rotationSpeed: 0.35, bloom: true, bloomStrength: 0.9, drift: true
+  };
+
+  const shared = {
+    uTime: { value: 0 }, uSpeed: { value: P.rotationSpeed },
+    uPixelRatio: { value: PR }
+  };
+  const makeMat = (size, alpha, speedUniform) => new THREE.ShaderMaterial({
+    vertexShader: VERT, fragmentShader: FRAG,
+    uniforms: {
+      uTime: shared.uTime, uSpeed: speedUniform || { value: 0 }, uPixelRatio: shared.uPixelRatio,
+      uSize: { value: size }, uAlpha: { value: alpha }
+    },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true
+  });
+
+  let galaxy = null, core = null;
+  const bgStars = (() => {
+    const n = 6000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    const sc = new Float32Array(n), rnd = new Float32Array(n * 3), c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const v = new THREE.Vector3().randomDirection().multiplyScalar(60 + Math.random() * 30);
+      pos.set([v.x, v.y, v.z], i * 3);
+      c.setHSL(0.55 + Math.random() * 0.15, 0.4, 0.55 + Math.random() * 0.4);
+      col.set([c.r, c.g, c.b], i * 3);
+      sc[i] = 0.4 + Math.random() * 1.2;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('aScale', new THREE.BufferAttribute(sc, 1));
+    g.setAttribute('aRandomness', new THREE.BufferAttribute(rnd, 3));
+    const pts = new THREE.Points(g, makeMat(90, 0.35));
+    pts.frustumCulled = false;
+    scene.add(pts);
+    return pts;
+  })();
+
+  function fillAttrs(n, fn) {
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    const sc = new Float32Array(n), rnd = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) fn(i, pos, col, sc, rnd);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('aScale', new THREE.BufferAttribute(sc, 1));
+    g.setAttribute('aRandomness', new THREE.BufferAttribute(rnd, 3));
+    return g;
+  }
+  const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) / 2;
+
+  function disposePoints(p) {
+    if (!p) return;
+    scene.remove(p); p.geometry.dispose(); p.material.dispose();
+  }
+
+  function generate() {
+    disposePoints(galaxy); disposePoints(core);
+    const inC = new THREE.Color(P.insideColor), outC = new THREE.Color(P.outsideColor), tmp = new THREE.Color();
+    const sign = () => (Math.random() < 0.5 ? 1 : -1);
+    const geo = fillAttrs(P.count, (i, pos, col, sc, rnd) => {
+      const r = Math.pow(Math.random(), 0.8) * P.radius + 0.05;
+      const branchAngle = (i % P.branches) / P.branches * Math.PI * 2;
+      const spinAngle = r * P.spin;
+      const rp = (m) => Math.pow(Math.random(), P.randomnessPower) * sign() * P.randomness * m;
+      const a = branchAngle + spinAngle;
+      pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = 0; pos[i * 3 + 2] = Math.sin(a) * r;
+      const k = r / P.radius;
+      // scatter shrinks vertically; wider at larger radius so arms stay defined near centre
+      rnd[i * 3] = rp(r); rnd[i * 3 + 1] = rp(r) * 0.35 * (1.2 - k * 0.6); rnd[i * 3 + 2] = rp(r);
+      tmp.copy(inC).lerp(outC, Math.min(1, k * 1.1));
+      const b = 0.55 + Math.random() * 0.45; // brightness jitter
+      col[i * 3] = tmp.r * b; col[i * 3 + 1] = tmp.g * b; col[i * 3 + 2] = tmp.b * b;
+      sc[i] = 0.3 + Math.pow(Math.random(), 4) * 2.2;
+    });
+    galaxy = new THREE.Points(geo, makeMat(P.size, 0.22, shared.uSpeed));
+    galaxy.frustumCulled = false;
+    scene.add(galaxy);
+
+    // dense glowing core: gaussian blob, flattened
+    const coreN = Math.min(30000, Math.floor(P.count * 0.2)) + 4000;
+    const warm = new THREE.Color('#fff1d6').lerp(inC, 0.4);
+    const cg = fillAttrs(coreN, (i, pos, col, sc) => {
+      const s = P.radius * 0.1;
+      pos[i * 3] = gauss() * s; pos[i * 3 + 1] = gauss() * s * 0.55; pos[i * 3 + 2] = gauss() * s;
+      const b = 0.5 + Math.random() * 0.5;
+      col[i * 3] = warm.r * b; col[i * 3 + 1] = warm.g * b; col[i * 3 + 2] = warm.b * b;
+      sc[i] = 0.4 + Math.random() * 1.2;
+    });
+    core = new THREE.Points(cg, makeMat(P.size * 0.9, 0.2, shared.uSpeed));
+    core.frustumCulled = false;
+    scene.add(core);
+    cntEl.textContent = (P.count + coreN + bgStars.geometry.attributes.position.count).toLocaleString();
+  }
+  generate();
+
+  // post-processing
+  const composer = new EffectComposer(renderer);
+  composer.setPixelRatio(PR); composer.setSize(innerWidth, innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), P.bloomStrength, 0.6, 0.15);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  // ---- hand-built parameter console ----
+  const SPEC = [
+    ['STRUCTURE', [
+      ['count', 'Count', 10000, 500000, 1000, 1, 0], ['radius', 'Radius', 1, 10, 0.1, 1, 1],
+      ['branches', 'Branches', 2, 8, 1, 1, 0], ['spin', 'Spin', -3, 3, 0.01, 1, 2]]],
+    ['DISTRIBUTION', [
+      ['randomness', 'Randomness', 0, 1.5, 0.01, 1, 2], ['randomnessPower', 'Power', 1, 8, 0.01, 1, 2]]],
+    ['CHROMA', [['insideColor', 'Inside'], ['outsideColor', 'Outside']]],
+    ['DYNAMICS', [
+      ['rotationSpeed', 'Rotation', -2, 2, 0.01, 0, 2], ['size', 'Size', 5, 80, 0.5, 0, 1],
+      ['bloom', 'Bloom'], ['bloomStrength', 'Bloom σ', 0, 3, 0.05, 0, 2], ['drift', 'Auto drift']]]
+  ];
+  const live = {
+    size: v => { galaxy.material.uniforms.uSize.value = v; core.material.uniforms.uSize.value = v * 0.9; },
+    rotationSpeed: v => { shared.uSpeed.value = v; },
+    bloomStrength: v => { bloom.strength = v; }
+  };
+  const syncers = [];
+  const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+  const body = document.getElementById('dbody');
+  SPEC.forEach(([title, items]) => {
+    const sec = el('section', 'grp', '<h3>' + title + '</h3>');
+    items.forEach(([key, label, min, max, step, regen, dec]) => {
+      const row = el('div', 'row');
+      const id = 'c-' + key;
+      row.append(el('label', 'lab', label)); row.lastChild.htmlFor = id;
+      if (typeof P[key] === 'string') {
+        const w = el('span', 'sw'), inp = el('input'); inp.type = 'color'; inp.id = id;
+        const val = el('output', 'val');
+        const s = () => { inp.value = P[key]; w.style.background = P[key]; val.textContent = P[key].toUpperCase(); };
+        inp.addEventListener('input', () => { P[key] = inp.value; s(); });
+        inp.addEventListener('change', () => { P[key] = inp.value; s(); generate(); });
+        w.append(inp); row.append(val, w); syncers.push(s);
+      } else if (typeof P[key] === 'boolean') {
+        const t = el('button', 'tog'); t.type = 'button'; t.id = id; t.setAttribute('role', 'switch');
+        const s = () => { t.setAttribute('aria-checked', P[key]); t.textContent = P[key] ? 'ON' : 'OFF'; };
+        t.addEventListener('click', () => { P[key] = !P[key]; s(); });
+        row.append(t); syncers.push(s);
+      } else {
+        const inp = el('input'); inp.type = 'range'; inp.id = id;
+        Object.assign(inp, { min, max, step }); const val = el('output', 'val');
+        const s = () => {
+          inp.value = P[key]; val.textContent = Number(P[key]).toFixed(dec);
+          inp.style.setProperty('--p', ((P[key] - min) / (max - min) * 100) + '%');
+        };
+        inp.addEventListener('input', () => { P[key] = +inp.value; s(); if (live[key]) live[key](P[key]); });
+        if (regen) inp.addEventListener('change', generate);
+        row.append(val, inp); syncers.push(s);
+      }
+      sec.append(row);
+    });
+    body.append(sec);
+  });
+  const syncAll = () => syncers.forEach(f => f());
+  syncAll();
+
+  const PRESETS = {
+    'Milky Way': { count: 150000, radius: 5, branches: 4, spin: 1.1, randomness: 0.45, randomnessPower: 3, insideColor: '#ff8a3d', outsideColor: '#4a6bff', rotationSpeed: 0.35 },
+    'Andromeda': { count: 220000, radius: 7, branches: 2, spin: 0.8, randomness: 0.3, randomnessPower: 4, insideColor: '#ffd7a8', outsideColor: '#7a8cff', rotationSpeed: 0.2 },
+    'Whirlpool': { count: 180000, radius: 6, branches: 2, spin: 2.4, randomness: 0.2, randomnessPower: 3, insideColor: '#ffffff', outsideColor: '#b46bff', rotationSpeed: 0.5 },
+    'Barred/Tight': { count: 160000, radius: 4, branches: 2, spin: 0.35, randomness: 0.25, randomnessPower: 2.5, insideColor: '#ffb36b', outsideColor: '#5fd0ff', rotationSpeed: 0.3 },
+    'Chaos': { count: 250000, radius: 8, branches: 7, spin: -2.2, randomness: 1.2, randomnessPower: 1.4, insideColor: '#ff3d7a', outsideColor: '#3dffd0', rotationSpeed: -0.8 }
+  };
+  const chips = document.getElementById('chips');
+  Object.entries(PRESETS).forEach(([name, vals], i) => {
+    const b = el('button', 'chip', '<i>' + String(i + 1).padStart(2, '0') + '</i>' + name); b.type = 'button';
+    b.addEventListener('click', () => {
+      Object.assign(P, vals); shared.uSpeed.value = P.rotationSpeed; syncAll(); generate();
+      chips.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === b));
+      document.getElementById('desig').textContent = name;
+    });
+    chips.append(b);
+  });
+
+  const drawer = document.getElementById('drawer'), tbtn = document.getElementById('dtoggle');
+  const setOpen = (o) => { drawer.classList.toggle('open', o); tbtn.setAttribute('aria-expanded', o); drawer.inert = !o; };
+  setOpen(innerWidth > 700);
+  tbtn.addEventListener('click', () => setOpen(!drawer.classList.contains('open')));
+  addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey) setOpen(!drawer.classList.contains('open'));
+    else if (e.key === 'Escape' && drawer.classList.contains('open') && innerWidth <= 700) { setOpen(false); tbtn.focus(); }
+  });
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  });
+
+  let idle = 0, lastInput = performance.now();
+  controls.addEventListener('start', () => { lastInput = performance.now(); idle = 0; });
+  controls.addEventListener('change', () => { if (controls.__driving !== true) lastInput = performance.now(); });
+  const clock = new THREE.Clock();
+  let frames = 0, acc = 0, first = true;
+  const sph = new THREE.Spherical();
+
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.1);
+    shared.uTime.value += dt;
+    if (P.drift && performance.now() - lastInput > 2500) {
+      // slow orbit + gentle breathing in elevation
+      const off = camera.position.clone().sub(controls.target);
+      sph.setFromVector3(off);
+      sph.theta += dt * 0.08;
+      sph.phi += Math.sin(shared.uTime.value * 0.2) * dt * 0.02;
+      sph.makeSafe();
+      off.setFromSpherical(sph);
+      controls.__driving = true;
+      camera.position.copy(controls.target).add(off);
+    }
+    controls.update();
+    controls.__driving = false;
+    if (P.bloom) composer.render(); else renderer.render(scene, camera);
+
+    frames++; acc += dt;
+    if (acc >= 0.5) { fpsEl.textContent = Math.round(frames / acc); frames = 0; acc = 0; }
+    if (first) { first = false; window.__demoReady = true; }
+  });
+} catch (e) {
+  console.error(e);
+  const er = document.getElementById('err'); er.hidden = false; er.textContent = 'FAULT // ' + (e && e.message || e);
+}
+</script>
+</body>
+</html>

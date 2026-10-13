@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="darkreader-lock">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D Capability Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: an exhibition catalogue — wall-text intro, then six "plates", each with a museum wall label beneath. */
+  :root {
+    --wall: #eceef0;        /* gallery wall, cool grey-white */
+    --plinth: #ffffff;      /* label card */
+    --ink: #17191e;
+    --ink-soft: #5b6170;
+    --rule: #cfd3da;
+    --accent: #2c3fd1;      /* catalogue ultramarine */
+    --display: "Gloock", "Bodoni 72", Didot, Georgia, serif;
+    --body: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --wall: #121317; --plinth: #1a1c22; --ink: #eceae4; --ink-soft: #a2a6b2; --rule: #2d3039; --accent: #8c9bff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --wall: #121317; --plinth: #1a1c22; --ink: #eceae4; --ink-soft: #a2a6b2; --rule: #2d3039; --accent: #8c9bff; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--wall); color: var(--ink); font: 17px/1.55 var(--body); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 48px 80px; }
+  @media (min-width: 720px) { .wrap { padding-inline: 40px; } }
+
+  .masthead { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); border-bottom: 1px solid var(--rule); padding-bottom: 14px; }
+  .intro { display: grid; gap: 24px 56px; padding-block: 56px 64px; }
+  @media (min-width: 880px) { .intro { grid-template-columns: 1.35fr 1fr; align-items: end; } }
+  h1 { font: 400 clamp(44px, 8vw, 104px)/.95 var(--display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .wall-text { max-width: 60ch; margin: 0; color: var(--ink-soft); }
+  .wall-text strong { color: var(--ink); font-weight: 500; }
+
+  .plates { display: grid; gap: 56px 40px; }
+  @media (min-width: 760px) { .plates { grid-template-columns: repeat(2, minmax(0, 1fr)); } .plates > a:nth-child(even) { margin-top: 72px; } }
+  a.plate { display: grid; gap: 0; color: inherit; text-decoration: none; min-width: 0; }
+  .frame { aspect-ratio: 4 / 3; max-width: 100%; position: relative; overflow: hidden; background: #0a0b0f; box-shadow: 0 1px 0 var(--rule), 0 24px 48px -28px rgba(0,0,0,.45); transition: transform .35s ease; }
+  .frame span { position: absolute; inset: 0; }
+  a.plate:hover .frame, a.plate:focus-visible .frame { transform: translateY(-4px); }
+  a.plate:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .label { background: var(--plinth); border: 1px solid var(--rule); border-top: 0; padding: 18px 20px 20px; display: grid; gap: 6px; }
+  .cat { font: 500 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  .label h2 { font: 400 30px/1.1 var(--display); margin: 2px 0 0; text-wrap: balance; }
+  .medium { font-style: italic; color: var(--ink-soft); margin: 0; }
+  .label dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 10px 0 0; font-size: 15px; }
+  .label dt { font: 500 11px/1.9 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  .label dd { margin: 0; }
+  .enter { margin-top: 10px; font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  a.plate:hover .enter { text-decoration: underline; text-underline-offset: 4px; }
+
+  footer { margin-top: 88px; border-top: 1px solid var(--rule); padding-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 32px; font: 400 13px/1.5 var(--mono); color: var(--ink-soft); }
+  @media (prefers-reduced-motion: reduce) { .frame { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead"><span>Exhibition catalogue</span><span>Six works · WebGL · 2026</span></div>
+
+  <section class="intro">
+    <h1>Real-time <em>3D</em>, built in parallel</h1>
+    <p class="wall-text">Each work was made by a separate AI subagent, all at the same time, then tested in a browser. Every piece tests a different part of 3D: scene graphs, shaders, physics, character rigs, particles and materials. <strong>Each also has its own interface, in a different design language.</strong> Open any plate to explore it. Drag to orbit and scroll to zoom.</p>
+  </section>
+
+  <main class="plates">
+    <a class="plate" href="demos/solar-system.html">
+      <div class="frame"><span style="background: radial-gradient(circle at 34% 56%, #ffe7a3 0 22px, #f2a33a 28px, rgba(242,163,58,.25) 60px, transparent 90px), radial-gradient(circle at 70% 40%, #6fa8ff 0 7px, transparent 8px), radial-gradient(circle at 82% 66%, #d9b27c 0 12px, transparent 13px), radial-gradient(ellipse 60% 22% at 34% 56%, transparent 98%, rgba(201,164,92,.5) 99%, transparent 100%), #0b1022;"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 1</span>
+        <h2>The Orrery</h2>
+        <p class="medium">Solar system with moons, rings and real planetary data</p>
+        <dl><dt>Tests</dt><dd>Scene graph, nested transforms, orbits</dd><dt>Interface</dt><dd>Brass observatory instrument</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+    <a class="plate" href="demos/terrain.html">
+      <div class="frame"><span style="background: radial-gradient(ellipse 38% 30% at 50% 58%, #f4f7fb 0 6%, #77716a 18%, #4f8f3a 45%, #dcc994 62%, transparent 66%), linear-gradient(#a9c7e6, #5b8fb0 45%, #2f6f86 46%, #1f4f63);"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 2</span>
+        <h2>Survey of an Island</h2>
+        <p class="medium">Procedural terrain, shader water, fog and a day cycle</p>
+        <dl><dt>Tests</dt><dd>Noise-generated mesh, GLSL, fog</dd><dt>Interface</dt><dd>Cartographer's field journal</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+    <a class="plate" href="demos/physics.html">
+      <div class="frame"><span style="background: linear-gradient(90deg, #e63b2e 0 25%, #f2c230 25% 50%, #2747c9 50% 75%, #f4f1ea 75%) bottom / 100% 34% no-repeat, radial-gradient(circle at 72% 36%, #111 0 26px, transparent 27px), #e9e4d8;"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 3</span>
+        <h2>Physics Playground</h2>
+        <p class="medium">A block tower, a wrecking ball and gravity presets</p>
+        <dl><dt>Tests</dt><dd>Rigid bodies, collisions, raycasting</dd><dt>Interface</dt><dd>Bauhaus toy lab</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+    <a class="plate" href="demos/robot.html">
+      <div class="frame"><span style="background: radial-gradient(circle at 46% 36%, #5ff3ff 0 4px, transparent 5px), radial-gradient(circle at 54% 36%, #5ff3ff 0 4px, transparent 5px), linear-gradient(#e9e5dc, #e9e5dc) 50% 38% / 64px 46px no-repeat, linear-gradient(#ff7a2f, #ff7a2f) 50% 72% / 76px 70px no-repeat, repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 2px, transparent 2px 4px), #1d2230;"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 4</span>
+        <h2>Unit-07</h2>
+        <p class="medium">A robot made from simple shapes, with a hand-animated walk</p>
+        <dl><dt>Tests</dt><dd>Modelling, joint hierarchy, procedural animation</dd><dt>Interface</dt><dd>Retro handheld game HUD</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+    <a class="plate" href="demos/galaxy.html">
+      <div class="frame"><span style="background: radial-gradient(circle at 50% 50%, #fff6e0 0 5px, #ff9d55 14px, rgba(160,110,255,.7) 46px, rgba(70,90,255,.35) 90px, transparent 140px), radial-gradient(circle, rgba(255,255,255,.6) 0 1px, transparent 1.5px) 0 0 / 23px 23px, #04050a;"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 5</span>
+        <h2>Spiral Galaxy</h2>
+        <p class="medium">150,000 stars rotating on the GPU, with presets</p>
+        <dl><dt>Tests</dt><dd>GPU buffers, custom shaders, performance</dd><dt>Interface</dt><dd>Deep-space research console</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+    <a class="plate" href="demos/showroom.html">
+      <div class="frame"><span style="background: radial-gradient(circle at 50% 52%, #fff1c4 0 8px, #d9a93f 30px, #6e4f17 46px, transparent 48px), radial-gradient(circle at 50% 52%, transparent 70px, #ff6a2a 72px 76px, transparent 78px), radial-gradient(circle at 20% 70%, #e3e6ec 0 14px, transparent 15px), radial-gradient(circle at 82% 68%, rgba(190,230,255,.6) 0 16px, transparent 17px), #15161a;"></span></div>
+      <div class="label">
+        <span class="cat">Cat. 6</span>
+        <h2>Atelier PBR</h2>
+        <p class="medium">Seven physically based materials under studio light</p>
+        <dl><dt>Tests</dt><dd>PBR, environment lighting, post-processing</dd><dt>Interface</dt><dd>Luxury product configurator</dd></dl>
+        <span class="enter">Enter work →</span>
+      </div>
+    </a>
+  </main>
+
+  <footer><span>Three.js r160 · cannon-es 0.20</span><span>Each work is one self-contained HTML file</span><span>Requires WebGL2</span></footer>
+</div>
+</body>
+</html>

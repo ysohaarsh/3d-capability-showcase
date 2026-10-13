@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="darkreader-lock">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Physics Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#e63b2e;--blue:#1f4fd8;--yel:#f4b81c;--paper:#f4efe2;--ink:#111;
+    --disp:"Archivo Black","Arial Black",Impact,sans-serif;--sans:"DM Sans","Helvetica Neue",Arial,sans-serif;
+    --sh:4px 4px 0 var(--ink);--bd:3px solid var(--ink)}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0d12;color:var(--ink);font-family:var(--sans);font-weight:500}
+  canvas{display:block}
+  button,input{font:inherit;color:inherit}
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:5}
+  #ui>*{pointer-events:auto}
+  :focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+  #back:focus-visible,#dialsBtn:focus-visible{outline-color:var(--yel)}
+
+  /* ---- title / stats column ---- */
+  #left{position:absolute;top:12px;left:12px;width:min(300px,calc(100vw - 112px));display:flex;flex-direction:column;gap:10px;pointer-events:none}
+  #left>*{pointer-events:auto}
+  #back{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:var(--bd);box-shadow:3px 3px 0 var(--ink);padding:3px 10px 3px 8px;font-weight:700;font-size:13px;color:var(--ink);text-decoration:none;border-radius:99px}
+  #back:hover{background:var(--yel)}
+  #box{position:relative;background:var(--yel);border:var(--bd);box-shadow:var(--sh);padding:12px 14px 12px;overflow:hidden}
+  #box .motifs{display:flex;gap:6px;margin-bottom:8px}
+  .m{width:18px;height:18px;border:var(--bd);border-width:2.5px;background:var(--red);border-radius:50%}
+  .m.sq{background:var(--blue);border-radius:0}
+  .m.tri{border:0;background:var(--ink);clip-path:polygon(50% 0,100% 100%,0 100%);position:relative}
+  .m.tri::after{content:"";position:absolute;inset:3px 3.5px 2.5px;background:var(--paper);clip-path:polygon(50% 0,100% 100%,0 100%)}
+  #box h1{font:400 clamp(20px,6vw,27px)/.95 var(--disp);text-transform:uppercase;margin:0;letter-spacing:-.01em;padding-right:44px}
+  #box .tests{margin:8px 0 0;font-size:12.5px;line-height:1.35;font-weight:700;border-top:var(--bd);padding-top:7px}
+  #box .tests span{display:block;font-weight:500}
+  #fps{position:absolute;top:8px;right:8px;width:48px;height:48px;border-radius:50%;background:var(--red);color:var(--paper);border:var(--bd);display:grid;place-content:center;text-align:center;transform:rotate(12deg);box-shadow:inset 0 0 0 2px var(--red),inset 0 0 0 3.5px var(--paper);font:400 14px/1 var(--disp);animation:stamp .5s cubic-bezier(.3,1.6,.5,1) both}
+  #fps small{display:block;font:700 8px/1 var(--sans);letter-spacing:.12em;margin-top:2px}
+  @keyframes stamp{from{transform:rotate(12deg) scale(2.2);opacity:0}}
+
+  #tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tile{background:var(--paper);border:var(--bd);box-shadow:3px 3px 0 var(--ink);padding:6px 9px 7px;min-width:0}
+  .tile.blue{background:var(--blue);color:var(--paper)}
+  .tile label,.tile .k{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .tile b{display:block;font:400 24px/1.1 var(--disp);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tile b i{font:700 11px var(--sans);font-style:normal;margin-left:3px;letter-spacing:.04em}
+  .tile.wide{grid-column:1/-1;padding-bottom:8px}
+  #meter{position:relative;height:16px;border:var(--bd);background:#fff;margin-top:4px;overflow:hidden}
+  #meterFill{position:absolute;inset:0;background:linear-gradient(90deg,var(--blue) 0 35%,var(--yel) 35% 70%,var(--red) 70%);clip-path:inset(0 100% 0 0)}
+  #meter::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 8px,var(--paper) 8px 10px);opacity:.85}
+
+  /* ---- dials ---- */
+  #right{position:absolute;top:12px;right:12px;width:262px;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  #dialsBtn{display:none;align-items:center;gap:6px;background:var(--blue);color:var(--paper);border:var(--bd);box-shadow:3px 3px 0 var(--ink);padding:6px 12px;font:400 13px var(--disp);text-transform:uppercase;cursor:pointer}
+  #dialsBtn[aria-expanded=true]{background:var(--red)}
+  #dials{width:100%;background:var(--paper);border:var(--bd);box-shadow:var(--sh);padding:10px 12px 12px}
+  #dials h2{display:flex;align-items:center;gap:8px;margin:0 0 8px;font:400 14px var(--disp);text-transform:uppercase}
+  #dials h2::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--blue);border:var(--bd);border-width:2.5px}
+  .row{margin-bottom:12px}.row:last-child{margin-bottom:0}
+  .row .hd{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .row output{font:400 15px var(--disp);letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums;background:var(--ink);color:var(--yel);padding:0 6px}
+  .scale{display:flex;justify-content:space-between;font-size:10px;font-weight:700;opacity:.7;margin-top:1px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;margin:2px 0 0;background:transparent;cursor:pointer;--p:50%;--c:var(--red)}
+  input[type=range]::-webkit-slider-runnable-track{height:16px;border:var(--bd);background:linear-gradient(90deg,var(--c) var(--p),#fff var(--p))}
+  input[type=range]::-moz-range-track{height:10px;border:var(--bd);background:linear-gradient(90deg,var(--c) var(--p),#fff var(--p))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-9px;border-radius:50%;background:var(--yel);border:var(--bd);box-shadow:2px 2px 0 var(--ink)}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--yel);border:var(--bd);box-shadow:2px 2px 0 var(--ink)}
+  input[type=range]:active::-webkit-slider-thumb{transform:translate(2px,2px);box-shadow:none}
+  .chips{display:flex;gap:6px;margin-top:4px}
+  .chip{flex:1;background:#fff;border:var(--bd);padding:3px 2px 2px;font-weight:700;font-size:12px;line-height:1.15;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+  .chip small{display:block;font-size:10px;font-weight:500}
+  .chip[aria-pressed=true]{background:var(--ink);color:var(--yel);transform:translate(2px,2px);box-shadow:none}
+
+  /* ---- toy tray ---- */
+  #tray{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100vw - 20px);display:flex;flex-wrap:wrap;justify-content:center;gap:10px 14px;background:var(--paper);border:var(--bd);box-shadow:var(--sh);padding:10px 12px;border-bottom-width:6px}
+  .grp{display:flex;gap:8px;align-items:stretch}
+  .grp+.grp{border-left:var(--bd);padding-left:14px}
+  .btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:#fff;border:var(--bd);box-shadow:var(--sh);cursor:pointer;padding:6px 6px 5px;min-width:58px;font-weight:700;font-size:11px;line-height:1.1;text-align:center;transition:transform .08s,box-shadow .08s,background .12s}
+  .btn:hover{background:var(--yel)}
+  .btn:active,.btn[aria-pressed=true]{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+  .shape[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+  .shape svg{width:30px;height:30px;display:block}
+  .act svg{width:22px;height:22px}
+  .act.go{background:var(--red);color:var(--paper)} .act.go:hover{background:#ff5a4c}
+  .act.pa[aria-pressed=true]{background:var(--blue);color:var(--paper)}
+  kbd{display:inline-block;min-width:17px;padding:0 4px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-bottom-width:4px;border-radius:4px;font:700 10px/1.25 var(--sans);text-align:center}
+  .shape kbd{position:absolute;top:-8px;right:-8px}
+
+  #err{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(440px,90vw);background:var(--red);color:var(--paper);border:var(--bd);box-shadow:6px 6px 0 var(--ink);padding:12px 16px;font-weight:700;white-space:pre-wrap;z-index:9;pointer-events:auto}
+  #err:empty{display:none}
+
+  @media (max-width:720px){
+    #dialsBtn{display:inline-flex}
+    #dials{display:none}#dials.open{display:block}
+    #right{width:min(262px,calc(100vw - 24px))}
+    #box .tests span{display:none}
+    #tiles{gap:6px}.tile b{font-size:19px}
+    #tray{gap:10px;padding:10px 8px;width:calc(100vw - 20px)}
+    .grp{width:100%;justify-content:space-between}
+    .grp+.grp{border-left:0;padding-left:0;border-top:var(--bd);padding-top:10px}
+    .btn{flex:1;min-width:0}
+    .shape svg{width:26px;height:26px}
+  }
+  @media (max-width:720px) and (max-height:620px){#tiles .wide{display:none}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"}}</script>
+</head>
+<body>
+<div id="ui">
+  <div id="left">
+    <a id="back" href="../index.html">← Gallery</a>
+    <div id="box">
+      <div class="motifs" aria-hidden="true"><i class="m"></i><i class="m sq"></i><i class="m tri"></i></div>
+      <h1>Physics<br>Playground</h1>
+      <p class="tests">Tests: rigid bodies, collisions, raycasting<span>Click the scene to drop a shape. Drag to orbit, wheel to zoom.</span></p>
+      <div id="fps" title="Frames per second"><div><span id="fpsN">--</span><small>FPS</small></div></div>
+    </div>
+    <div id="tiles">
+      <div class="tile blue"><label>Bodies</label><b id="nBodies">--</b></div>
+      <div class="tile"><label>Biggest impact</label><b><span id="nPeak">0.0</span><i>m/s</i></b></div>
+      <div class="tile wide"><span class="k">Impact meter</span><div id="meter" role="meter" aria-label="Impact meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="meterFill"></div></div></div>
+    </div>
+  </div>
+
+  <div id="right">
+    <button id="dialsBtn" type="button" aria-expanded="false" aria-controls="dials">Dials</button>
+    <section id="dials" aria-label="Lab dials">
+      <h2>Lab Dials</h2>
+      <div class="row">
+        <div class="hd"><label for="grav">Gravity</label><output id="gravOut" for="grav">-9.82 m/s²</output></div>
+        <input id="grav" type="range" min="-30" max="0" step="0.01" value="-9.82">
+        <div class="scale"><span>-30</span><span>0</span></div>
+        <div class="chips" role="group" aria-label="Gravity presets">
+          <button class="chip" type="button" data-g="-1.62" aria-pressed="false">Moon<small>-1.62</small></button>
+          <button class="chip" type="button" data-g="-9.82" aria-pressed="true">Earth<small>-9.82</small></button>
+          <button class="chip" type="button" data-g="-24.79" aria-pressed="false">Jupiter<small>-24.79</small></button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="hd"><label for="rest">Bounciness</label><output id="restOut" for="rest">0.30</output></div>
+        <input id="rest" type="range" min="0" max="1" step="0.01" value="0.3" style="--c:var(--blue)">
+        <div class="scale"><span>dead</span><span>rubber</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="tray" role="toolbar" aria-label="Toy tray">
+    <div class="grp" role="group" aria-label="Spawn shape">
+      <button class="btn shape" type="button" data-shape="box" aria-pressed="false" aria-label="Box (1)"><kbd>1</kbd>
+        <svg viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" fill="#e63b2e" stroke="#111" stroke-width="3"/></svg>Box</button>
+      <button class="btn shape" type="button" data-shape="sphere" aria-pressed="false" aria-label="Sphere (2)"><kbd>2</kbd>
+        <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12.5" fill="#1f4fd8" stroke="#111" stroke-width="3"/></svg>Sphere</button>
+      <button class="btn shape" type="button" data-shape="cylinder" aria-pressed="false" aria-label="Cylinder (3)"><kbd>3</kbd>
+        <svg viewBox="0 0 32 32"><path d="M5 8v16c0 3 5 5 11 5s11-2 11-5V8z" fill="#f4b81c" stroke="#111" stroke-width="3" stroke-linejoin="round"/><ellipse cx="16" cy="8" rx="11" ry="5" fill="#f4b81c" stroke="#111" stroke-width="3"/></svg>Cylinder</button>
+      <button class="btn shape" type="button" data-shape="random" aria-pressed="true" aria-label="Random (4)"><kbd>4</kbd>
+        <svg viewBox="0 0 32 32"><path d="M16 3 30 28H2z" fill="#f4efe2" stroke="#111" stroke-width="3" stroke-linejoin="round"/><text x="16" y="25" text-anchor="middle" font-family="Archivo Black,Arial Black,sans-serif" font-size="15" fill="#111">?</text></svg>Random</button>
+    </div>
+    <div class="grp" role="group" aria-label="Actions">
+      <button class="btn act" id="bBurst" type="button" aria-label="Burst times 20 (Space)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/></svg>Burst ×20<kbd>Space</kbd></button>
+      <button class="btn act go" id="bBall" type="button" aria-label="Wrecking ball (B)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#111"/><circle cx="9" cy="9" r="2.5" fill="#f4efe2"/></svg>Wrecking ball<kbd>B</kbd></button>
+      <button class="btn act" id="bReset" type="button" aria-label="Reset (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3-6.2M20 3v5h-5"/></svg>Reset<kbd>R</kbd></button>
+      <button class="btn act pa" id="bPause" type="button" aria-pressed="false" aria-label="Pause (P)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/></svg><span id="pauseTxt">Pause</span><kbd>P</kbd></button>
+    </div>
+  </div>
+</div>
+<div id="err" role="alert"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as CANNON from 'cannon-es';
+
+const $ = id => document.getElementById(id);
+const errEl = $('err');
+
+try {
+  // ---------- renderer / scene ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0d12);
+  scene.fog = new THREE.Fog(0x0b0d12, 60, 130);
+
+  const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 300);
+  camera.position.set(14, 11, 16);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.target.set(0, 3, 0);
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.update();
+
+  scene.add(new THREE.HemisphereLight(0x9fb8ff, 0x2a2420, 0.7));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(18, 30, 12);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera;
+  sc.left = -26; sc.right = 26; sc.top = 26; sc.bottom = -26; sc.near = 5; sc.far = 80;
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 4;
+  scene.add(sun);
+
+  // ---------- ground ----------
+  function checkerTexture() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#2b3140'; g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#353c4f'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.strokeRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(50, 50);
+    t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100),
+    new THREE.MeshStandardMaterial({ map: checkerTexture(), roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ---------- physics ----------
+  const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+  world.broadphase = new CANNON.SAPBroadphase(world);
+  world.allowSleep = true;
+  world.solver.iterations = 20;
+  world.defaultContactMaterial.friction = 0.4;
+  const matObj = new CANNON.Material('obj');
+  const matGround = new CANNON.Material('ground');
+  const cmObj = new CANNON.ContactMaterial(matObj, matObj, { friction: 0.45, restitution: 0.3 });
+  const cmGround = new CANNON.ContactMaterial(matObj, matGround, { friction: 0.5, restitution: 0.3 });
+  world.addContactMaterial(cmObj); world.addContactMaterial(cmGround);
+
+  const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane(), material: matGround });
+  groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+  world.addBody(groundBody);
+
+  // ---------- live impact stats (UI) ----------
+  const impact = { peak: 0, level: 0 };
+
+  // ---------- objects ----------
+  const items = [];       // dynamic: {body, mesh}
+  const statics = [];     // ramp etc.
+  const flashing = new Set();
+  const MAX = 300;
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const unitSphere = new THREE.SphereGeometry(1, 28, 20);
+  const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 24);
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function addItem(kind, pos, opts = {}) {
+    let shape, geo, scale, mass;
+    if (kind === 'box') {
+      const s = opts.size || [rand(0.6, 1.3), rand(0.6, 1.3), rand(0.6, 1.3)];
+      shape = new CANNON.Box(new CANNON.Vec3(s[0] / 2, s[1] / 2, s[2] / 2));
+      geo = unitBox; scale = s; mass = opts.mass ?? s[0] * s[1] * s[2];
+    } else if (kind === 'sphere') {
+      const r = opts.radius || rand(0.35, 0.7);
+      shape = new CANNON.Sphere(r); geo = unitSphere; scale = [r, r, r];
+      mass = opts.mass ?? (4 / 3) * Math.PI * r ** 3 * 1.2;
+    } else {
+      const r = rand(0.3, 0.6), h = rand(0.7, 1.4);
+      shape = new CANNON.Cylinder(r, r, h, 16); geo = unitCyl; scale = [r, h, r];
+      mass = opts.mass ?? Math.PI * r * r * h;
+    }
+    const color = opts.color ?? new THREE.Color().setHSL(Math.random(), 0.65, 0.55);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: opts.metal ?? 0.1 }));
+    mesh.scale.set(...scale);
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.userData.base = new THREE.Color(color);
+    scene.add(mesh);
+
+    const body = new CANNON.Body({ mass, shape, material: matObj, position: new CANNON.Vec3(...pos) });
+    body.sleepSpeedLimit = 0.15; body.sleepTimeLimit = 0.8;
+    body.linearDamping = 0.01; body.angularDamping = 0.02;
+    if (opts.quat) body.quaternion.copy(opts.quat);
+    else if (!opts.noSpin) body.quaternion.setFromEuler(rand(0, 6), rand(0, 6), rand(0, 6));
+    body.addEventListener('collide', e => {
+      const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+      if (v > 5) { mesh.userData.flash = Math.min(1, v / 14); flashing.add(mesh); }
+      if (v > 0.5) { impact.peak = Math.max(impact.peak, v); impact.level = Math.max(impact.level, Math.min(1, v / 20)); }
+    });
+    world.addBody(body);
+    const item = { body, mesh };
+    items.push(item);
+    while (items.length > MAX) removeItem(items[0]);
+    return item;
+  }
+
+  function removeItem(it) {
+    const i = items.indexOf(it); if (i >= 0) items.splice(i, 1);
+    world.removeBody(it.body);
+    scene.remove(it.mesh);
+    it.mesh.material.dispose();
+    flashing.delete(it.mesh);
+  }
+
+  function addStaticBox(size, pos, quat, color) {
+    const mesh = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }));
+    mesh.scale.set(...size); mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
+    const body = new CANNON.Body({ mass: 0, material: matGround,
+      shape: new CANNON.Box(new CANNON.Vec3(size[0] / 2, size[1] / 2, size[2] / 2)) });
+    body.position.set(...pos); body.quaternion.copy(quat);
+    world.addBody(body);
+    mesh.position.copy(body.position); mesh.quaternion.copy(body.quaternion);
+    statics.push({ body, mesh });
+  }
+
+  function buildScene() {
+    // Jenga-like tower: 3 blocks per level, alternating orientation
+    const bw = 0.8, bh = 0.5, bl = 2.4, gap = 0.01;
+    for (let lvl = 0; lvl < 10; lvl++) {
+      const y = bh / 2 + lvl * bh;
+      const rot = lvl % 2 === 1;
+      for (let k = -1; k <= 1; k++) {
+        const off = k * (bw + gap);
+        const pos = rot ? [off, y, 0] : [0, y, off];
+        const size = rot ? [bl, bh, bw] : [bw, bh, bl];
+        const tint = new THREE.Color().setHSL(0.08 + 0.02 * (lvl % 2), 0.45, 0.5 + 0.03 * k);
+        // start asleep so the stack holds until something hits it (contacts wake it)
+        addItem('box', pos, { size, mass: 1, color: tint, noSpin: true, metal: 0 }).body.sleep();
+      }
+    }
+    // Ramp
+    const q = new CANNON.Quaternion(); q.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), 0.38);
+    addStaticBox([9, 0.4, 5], [-8, 1.6, 4], q, 0x3b6ea8);
+    addStaticBox([1.5, 1.2, 5], [-12.2, 0.6, 4], new CANNON.Quaternion(), 0x2f567f);
+    // a few bumpers
+    for (let i = 0; i < 3; i++)
+      addStaticBox([0.6, 1.2, 0.6], [6 + i * 2.2, 0.6, -6 + i * 1.5], new CANNON.Quaternion(), 0x8a4fff);
+  }
+
+  function resetScene() {
+    while (items.length) removeItem(items[0]);
+    for (const s of statics) { world.removeBody(s.body); scene.remove(s.mesh); s.mesh.material.dispose(); }
+    statics.length = 0;
+    buildScene();
+    impact.peak = 0; impact.level = 0;
+  }
+
+  // ---------- lab dials / tray (hand-built controls) ----------
+  const params = { gravity: -9.82, restitution: 0.3, shape: 'random', paused: false };
+  const gravIn = $('grav'), restIn = $('rest');
+  const chips = [...document.querySelectorAll('.chip')];
+  const shapeBtns = [...document.querySelectorAll('.shape')];
+  const fillRange = el => el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+
+  function setGravity(g) {
+    params.gravity = g; world.gravity.set(0, g, 0); items.forEach(i => i.body.wakeUp());
+    gravIn.value = g; fillRange(gravIn);
+    $('gravOut').textContent = g.toFixed(2) + ' m/s²';
+    chips.forEach(c => c.setAttribute('aria-pressed', String(Math.abs(+c.dataset.g - g) < 0.005)));
+  }
+  function setRestitution(r) {
+    params.restitution = r; cmObj.restitution = r; cmGround.restitution = r; items.forEach(i => i.body.wakeUp());
+    restIn.value = r; fillRange(restIn); $('restOut').textContent = r.toFixed(2);
+  }
+  function setShape(s) {
+    params.shape = s;
+    shapeBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.shape === s)));
+  }
+  function togglePause() {
+    params.paused = !params.paused;
+    $('bPause').setAttribute('aria-pressed', String(params.paused));
+    $('pauseTxt').textContent = params.paused ? 'Play' : 'Pause';
+    $('bPause').setAttribute('aria-label', (params.paused ? 'Play' : 'Pause') + ' (P)');
+  }
+  gravIn.addEventListener('input', () => setGravity(parseFloat(gravIn.value)));
+  restIn.addEventListener('input', () => setRestitution(parseFloat(restIn.value)));
+  chips.forEach(c => c.addEventListener('click', () => setGravity(parseFloat(c.dataset.g))));
+  shapeBtns.forEach(b => b.addEventListener('click', () => setShape(b.dataset.shape)));
+  const dialsBtn = $('dialsBtn'), dialsEl = $('dials');
+  const setDialsLabel = open => { dialsBtn.textContent = open ? 'Close' : 'Dials'; };
+  setDialsLabel(false);
+  dialsBtn.addEventListener('click', () => {
+    const open = dialsEl.classList.toggle('open');
+    dialsBtn.setAttribute('aria-expanded', String(open)); setDialsLabel(open);
+  });
+  fillRange(gravIn); fillRange(restIn); setShape('random');
+
+  function spawnAt(x, z, y = 9) {
+    const kinds = ['box', 'sphere', 'cylinder'];
+    const k = params.shape === 'random' ? kinds[Math.floor(Math.random() * 3)] : params.shape;
+    addItem(k, [x, y, z]);
+  }
+  function burst() {
+    for (let i = 0; i < 20; i++) spawnAt(rand(-6, 6), rand(-6, 6), rand(8, 22));
+  }
+
+  // ---------- input ----------
+  const raycaster = new THREE.Raycaster();
+  const ptr = new THREE.Vector2(0, 0);
+  let down = null;
+  const setPtr = e => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); };
+  const dom = renderer.domElement;
+  dom.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; setPtr(e); });
+  dom.addEventListener('pointermove', setPtr);
+  dom.addEventListener('pointerup', e => {
+    if (!down || e.button !== 0) return;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    down = null;
+    if (moved >= 5) return;
+    setPtr(e);
+    raycaster.setFromCamera(ptr, camera);
+    const hits = raycaster.intersectObjects([ground, ...statics.map(s => s.mesh), ...items.map(i => i.mesh)], false);
+    if (hits.length) {
+      const p = hits[0].point;
+      spawnAt(p.x, p.z, Math.max(p.y, 0) + 8);
+    }
+  });
+  function launchBall() {
+    raycaster.setFromCamera(ptr, camera);
+    const d = raycaster.ray.direction.clone().normalize();
+    const o = raycaster.ray.origin.clone().addScaledVector(d, 1.5);
+    const it = addItem('sphere', [o.x, o.y, o.z], { radius: 0.7, mass: 60, color: 0xff4d4d, metal: 0.6, noSpin: true });
+    it.body.velocity.set(d.x * 38, d.y * 38, d.z * 38);
+    it.body.wakeUp();
+  }
+
+  // UI never reaches the scene: stop pointer events at the overlay
+  for (const t of ['pointerdown', 'pointerup', 'click'])
+    $('ui').addEventListener(t, e => { if (e.target !== $('ui')) e.stopPropagation(); });
+  // after a mouse/touch click, drop focus so Space/keys keep driving the scene; keyboard clicks keep focus ring
+  const act = (id, fn) => $(id).addEventListener('click', e => { fn(); if (e.detail > 0) e.currentTarget.blur(); });
+  act('bBurst', burst); act('bBall', launchBall); act('bReset', resetScene); act('bPause', togglePause);
+
+  addEventListener('keydown', e => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(tag) || (e.target && e.target.isContentEditable)) return;
+    const k = e.key.toLowerCase();
+    if (e.code === 'Space') { if (tag === 'BUTTON' || tag === 'A') return; e.preventDefault(); burst(); }
+    else if (k === 'b') launchBall();
+    else if (k === 'r') resetScene();
+    else if (k === 'p') togglePause();
+    else if (k >= '1' && k <= '4') setShape(['box', 'sphere', 'cylinder', 'random'][+k - 1]);
+  });
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  buildScene();
+
+  // ---------- loop ----------
+  const clock = new THREE.Clock();
+  let frames = 0, acc = 0, ready = false, shownBodies = -1, shownPeak = -1;
+  const flashCol = new THREE.Color(0xffffff);
+  const meterFill = $('meterFill'), meterEl = $('meter');
+  function frame() {
+    requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    if (!params.paused) world.step(1 / 60, dt, 3);
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.body.position.y < -20) { removeItem(it); continue; }
+      it.mesh.position.copy(it.body.position);
+      it.mesh.quaternion.copy(it.body.quaternion);
+    }
+    for (const m of flashing) {
+      const f = m.userData.flash = m.userData.flash - dt * 2.5;
+      if (f <= 0) { m.userData.flash = 0; m.material.emissive.setRGB(0, 0, 0); flashing.delete(m); }
+      else m.material.emissive.copy(flashCol).multiplyScalar(f * 0.7);
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+    if (!ready) { ready = true; window.__demoReady = true; }
+
+    // UI readouts
+    impact.level = Math.max(0, impact.level - dt * 0.9);
+    meterFill.style.clipPath = `inset(0 ${(1 - impact.level) * 100}% 0 0)`;
+    meterEl.setAttribute('aria-valuenow', Math.round(impact.level * 100));
+    if (items.length !== shownBodies) { shownBodies = items.length; $('nBodies').textContent = items.length; }
+    const pk = Math.round(impact.peak * 10);
+    if (pk !== shownPeak) { shownPeak = pk; $('nPeak').textContent = (pk / 10).toFixed(1); }
+
+    frames++; acc += dt;
+    if (acc >= 0.5) {
+      $('fpsN').textContent = Math.round(frames / acc);
+      frames = 0; acc = 0;
+    }
+  }
+  frame();
+} catch (err) {
+  console.error(err);
+  errEl.textContent = 'Error: ' + (err && err.message ? err.message : err);
+}
+</script>
+</body>
+</html>

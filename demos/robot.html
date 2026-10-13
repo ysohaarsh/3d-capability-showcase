@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="darkreader-lock"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UNIT-07 // Low-poly Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0e131d;--slate:#182032;--slate2:#232d45;--off:#ece8df;--or:#ff7a1a;--cy:#32e6ff;--dim:#7c89a6;--bad:#ff4d4d;
+ --px:'Press Start 2P','Courier New',monospace;--vt:'VT323','Courier New',monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#141a26;color:var(--off);font-family:var(--vt);font-size:20px;-webkit-tap-highlight-color:transparent}
+canvas{display:block}
+/* scanlines */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.5;
+ background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.1) 3px,rgba(0,0,0,0) 4px)}
+/* pixel frame: stepped corners via box-shadow */
+.box{background:var(--slate);position:relative;
+ box-shadow:0 -2px 0 0 var(--off),0 2px 0 0 var(--off),-2px 0 0 0 var(--off),2px 0 0 0 var(--off),
+  0 0 0 2px var(--off),6px 6px 0 0 rgba(0,0,0,.35);outline:0}
+.box{box-shadow:0 -2px 0 0 var(--off),0 2px 0 0 var(--off),-2px 0 0 0 var(--off),2px 0 0 0 var(--off),5px 5px 0 2px rgba(0,0,0,.35),inset 0 0 0 2px var(--ink),inset 0 0 0 4px var(--slate2)}
+.lbl{font-family:var(--px);font-size:8px;letter-spacing:0;color:var(--dim);text-transform:uppercase}
+a:focus-visible,button:focus-visible{outline:3px dashed var(--cy);outline-offset:3px}
+.hud{position:fixed;z-index:10;pointer-events:none}
+.hud a,.hud button{pointer-events:auto}
+/* top-left */
+#tl{top:14px;left:14px;width:min(214px,54vw)}
+#tl .box{padding:12px 10px 10px}
+.id{display:flex;gap:10px;align-items:center}
+#portrait{width:48px;height:48px;flex:none;background:var(--ink);box-shadow:0 0 0 2px var(--or);image-rendering:pixelated}
+.nm{font-family:var(--px);font-size:11px;color:var(--off);line-height:1.3}
+.nm small{display:block;font-size:7px;color:var(--cy);margin-top:4px}
+#state{display:inline-block;margin-top:6px;font-family:var(--px);font-size:8px;padding:4px 6px 3px;background:var(--or);color:var(--ink);min-width:62px;text-align:center}
+#state[data-s=IDLE]{background:var(--dim)}
+#state[data-s=RUN]{background:var(--bad);color:var(--off)}
+#state[data-s=JUMP]{background:var(--cy)}
+#state[data-s=WAVE]{background:var(--off)}
+.row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.row .lbl{width:34px;flex:none}
+#en{flex:1;height:14px;background:var(--ink);padding:2px;box-shadow:0 0 0 2px var(--off)}
+#enfill{height:100%;width:100%;background:var(--cy);
+ -webkit-mask:repeating-linear-gradient(90deg,#000 0 6px,transparent 6px 8px);mask:repeating-linear-gradient(90deg,#000 0 6px,transparent 6px 8px)}
+#en.low #enfill{background:var(--bad)}
+#enval{font-size:18px;width:30px;text-align:right;color:var(--off)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.stats div{background:var(--ink);padding:4px 6px 2px}
+.stats b{display:block;font-weight:400;font-size:22px;line-height:1;color:var(--or);font-variant-numeric:tabular-nums}
+#back{display:inline-block;margin-top:12px;font-family:var(--px);font-size:8px;color:var(--ink);background:var(--off);text-decoration:none;padding:7px 8px 6px;
+ box-shadow:0 -2px 0 var(--off),0 2px 0 var(--off),-2px 0 0 var(--off),2px 0 0 var(--off),4px 4px 0 2px rgba(0,0,0,.35)}
+#back:hover{background:var(--or)}
+#err{margin-top:8px;max-width:214px;font-size:18px;color:var(--bad);background:var(--ink);padding:6px;white-space:pre-wrap;pointer-events:auto;box-shadow:0 0 0 2px var(--bad)}
+#err:empty{display:none}
+/* top-right radar */
+#tr{top:14px;right:14px;text-align:right}
+#tr .box{padding:10px;display:inline-block;text-align:left}
+#radar{display:block;width:96px;height:96px;margin-top:6px;image-rendering:pixelated;background:var(--ink);box-shadow:0 0 0 2px var(--cy)}
+#fps{margin-top:12px;display:inline-block;font-family:var(--px);font-size:9px;color:var(--ink);background:var(--cy);padding:6px 7px 5px;font-variant-numeric:tabular-nums}
+/* bottom-right keycaps */
+#br{right:14px;bottom:14px}
+#br .box{padding:12px 12px 10px;display:grid;gap:8px}
+.kr{display:flex;align-items:center;gap:6px}
+.kr .lbl{margin-left:4px;color:var(--off)}
+.kc{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:3px 5px 0;font-family:var(--px);font-size:8px;color:var(--off);background:var(--slate2);
+ box-shadow:0 -2px 0 var(--dim),0 2px 0 var(--dim),-2px 0 0 var(--dim),2px 0 0 var(--dim),0 5px 0 0 var(--ink);transform:translateY(-2px)}
+.kc.on{background:var(--cy);color:var(--ink);transform:translateY(1px);box-shadow:0 -2px 0 var(--off),0 2px 0 var(--off),-2px 0 0 var(--off),2px 0 0 var(--off),0 0 12px var(--cy)}
+.wasd{display:grid;grid-template-columns:repeat(3,28px);gap:6px;margin-right:4px}
+.wasd .kc:first-child{grid-column:2}
+.wasd .kc:nth-child(2){grid-column:1}
+.wasd .kc{min-width:0}
+.wasd+.lbl{align-self:center}
+/* touch controls */
+#touch{display:none;position:fixed;left:0;right:0;bottom:0;z-index:12;padding:0 14px 16px;justify-content:space-between;align-items:flex-end;pointer-events:none}
+#touch button{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;font-family:var(--px);color:var(--off);background:var(--slate2);border:0;cursor:pointer;
+ box-shadow:0 -2px 0 var(--off),0 2px 0 var(--off),-2px 0 0 var(--off),2px 0 0 var(--off),0 6px 0 2px var(--ink)}
+#touch button:active,#touch button.dn{background:var(--cy);color:var(--ink);transform:translateY(3px)}
+#dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px}
+#dpad button{font-size:14px}
+#dpad .u{grid-column:2}#dpad .l{grid-column:1;grid-row:2}#dpad .r{grid-column:3;grid-row:2}#dpad .d{grid-column:2;grid-row:3}
+#acts{display:grid;grid-template-columns:62px 62px;gap:8px;align-items:end}
+#acts button{height:56px;font-size:8px}
+#acts .jump{background:var(--or);color:var(--ink);height:72px;grid-column:2}
+#acts .run{grid-column:1}
+#acts .wave{grid-column:1;grid-row:1}
+@media (pointer:coarse){#touch{display:flex}#br{display:none}}
+@media (max-width:480px){#tr .box{padding:8px}.nm{font-size:9px}}
+/* title screen */
+#title{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:rgba(8,10,16,.74);cursor:pointer;transition:opacity .5s steps(5)}
+#title.off{opacity:0;pointer-events:none}
+#title .box{padding:28px 22px 22px;text-align:center;max-width:min(440px,100%)}
+#title h1{margin:0;font-family:var(--px);font-weight:400;font-size:clamp(22px,8vw,40px);color:var(--or);text-shadow:3px 3px 0 var(--ink),0 0 18px rgba(255,122,26,.5);animation:flick 3s steps(1) infinite}
+#title .sub{font-family:var(--px);font-size:9px;color:var(--cy);margin:14px 0 16px;line-height:1.6}
+#title p{margin:0 0 18px;font-size:20px;line-height:1.1;color:var(--off)}
+#start{font-family:var(--px);font-size:9px;line-height:1.7;color:var(--ink);background:var(--off);border:0;padding:10px 12px 8px;cursor:pointer;animation:blink 1s steps(1) infinite;
+ box-shadow:0 -2px 0 var(--off),0 2px 0 var(--off),-2px 0 0 var(--off),2px 0 0 var(--off),4px 4px 0 2px rgba(0,0,0,.4)}
+#start .t{display:none}
+@media (pointer:coarse){#start .k{display:none}#start .t{display:inline}}
+@keyframes blink{50%{background:var(--or)}}
+@keyframes flick{0%,92%,96%{opacity:1}94%,98%{opacity:.6}}
+@media (prefers-reduced-motion:reduce){
+ body::after{display:none}
+ #title h1,#start{animation:none}
+ #title{transition:none}
+}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js","lil-gui":"https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/dist/lil-gui.esm.min.js"}}</script>
+</head><body>
+<div class="hud" id="tl">
+  <div class="box">
+    <div class="id">
+      <svg id="portrait" viewBox="0 0 16 16" shape-rendering="crispEdges" role="img" aria-label="Robot portrait">
+        <rect x="8" y="0" width="1" height="2" fill="#7c89a6"/><rect x="7" y="0" width="3" height="1" fill="#32e6ff"/>
+        <rect x="3" y="3" width="10" height="9" fill="#ece8df"/><rect x="4" y="5" width="8" height="4" fill="#2b303c"/>
+        <rect x="5" y="6" width="2" height="2" fill="#32e6ff"/><rect x="9" y="6" width="2" height="2" fill="#32e6ff"/>
+        <rect x="1" y="6" width="2" height="4" fill="#ff7a1a"/><rect x="13" y="6" width="2" height="4" fill="#ff7a1a"/>
+        <rect x="5" y="10" width="6" height="1" fill="#7c89a6"/><rect x="5" y="13" width="6" height="3" fill="#ff7a1a"/>
+      </svg>
+      <div class="nm">UNIT-07<small>LV.01 BIPED</small><span id="state" data-s="IDLE">IDLE</span></div>
+    </div>
+    <div class="row"><span class="lbl">NRG</span><div id="en"><div id="enfill"></div></div><span id="enval">100</span></div>
+    <div class="stats"><div><span class="lbl">STEPS</span><b id="steps">0</b></div><div><span class="lbl">DIST</span><b><span id="dist">0.0</span>m</b></div></div>
+    <a id="back" href="../index.html">&larr; GALLERY</a>
+  </div>
+  <div id="err" role="alert"></div>
+</div>
+<div class="hud" id="tr"><div class="box"><span class="lbl">RADAR</span><canvas id="radar" width="96" height="96" aria-label="Radar minimap"></canvas></div><br><span id="fps">FPS --</span></div>
+<div class="hud" id="br" aria-label="Controls">
+  <div class="box">
+    <div class="kr"><div class="wasd"><span class="kc" data-key="KeyW">W</span><span class="kc" data-key="KeyA">A</span><span class="kc" data-key="KeyS">S</span><span class="kc" data-key="KeyD">D</span></div><span class="lbl">MOVE</span></div>
+    <div class="kr"><span class="kc" data-key="ShiftLeft">SHIFT</span><span class="lbl">RUN</span></div>
+    <div class="kr"><span class="kc" data-key="Space">SPACE</span><span class="lbl">JUMP</span><span class="kc" data-key="KeyE">E</span><span class="lbl">WAVE</span></div>
+  </div>
+</div>
+<div id="touch">
+  <div id="dpad" role="group" aria-label="Directional pad">
+    <button class="u" data-hold="KeyW" aria-label="Forward">&#9650;</button><button class="l" data-hold="KeyA" aria-label="Left">&#9664;</button>
+    <button class="r" data-hold="KeyD" aria-label="Right">&#9654;</button><button class="d" data-hold="KeyS" aria-label="Back">&#9660;</button>
+  </div>
+  <div id="acts" role="group" aria-label="Actions">
+    <button class="wave" data-act="wave">WAVE</button><button class="jump" data-act="jump">JUMP</button><button class="run" data-hold="ShiftLeft">RUN</button>
+  </div>
+</div>
+<div id="title" role="dialog" aria-label="Title screen">
+  <div class="box">
+    <h1>UNIT-07</h1>
+    <div class="sub">LOW-POLY ROBOT DEMO</div>
+    <p>Tests: modelling from primitives, joint hierarchy, procedural animation, input handling.</p>
+    <button id="start"><span class="k">PRESS ANY KEY /<br>CLICK TO START</span><span class="t">TAP TO START</span></button>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+try {
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  const FOG = 0x141a26;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(FOG);
+  scene.fog = new THREE.Fog(FOG, 22, 70);
+  const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 200);
+  camera.position.set(0, 3.5, 7);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.target.set(0, 1.1, 0); controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minDistance = 3; controls.maxDistance = 20;
+
+  // ---- lights ----
+  scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x2a2438, 0.9));
+  const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 50 });
+  sun.shadow.radius = 4; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+  const sunOff = new THREE.Vector3(8, 16, 6);
+  scene.add(sun, sun.target);
+
+  // ---- ground with procedural grid ----
+  const gc = document.createElement('canvas'); gc.width = gc.height = 512;
+  const g = gc.getContext('2d');
+  g.fillStyle = '#232a3a'; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = '#272f42'; g.fillRect(0, 0, 256, 256); g.fillRect(256, 256, 256, 256);
+  g.strokeStyle = '#3d4962'; g.lineWidth = 3; g.strokeRect(0, 0, 512, 512);
+  g.strokeStyle = '#303a50'; g.lineWidth = 1.5;
+  for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(i * 128, 0); g.lineTo(i * 128, 512); g.moveTo(0, i * 128); g.lineTo(512, i * 128); g.stroke(); }
+  const gtex = new THREE.CanvasTexture(gc);
+  gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping; gtex.repeat.set(50, 50);
+  gtex.anisotropy = renderer.capabilities.getMaxAnisotropy(); gtex.colorSpace = THREE.SRGBColorSpace;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ map: gtex, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  // ---- props ----
+  const colliders = [];
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x6b7385, flatShading: true, roughness: 1 });
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0xb58650, flatShading: true, roughness: 0.9 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x6e4d2b, flatShading: true, roughness: 0.9 });
+  function place(x, z, r) { colliders.push({ x, z, r }); }
+  for (let i = 0; i < 18; i++) {
+    const a = rnd() * Math.PI * 2, d = 6 + rnd() * 20, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const s = 0.5 + rnd() * 1.1;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), rockMat);
+    m.position.set(x, s * 0.55, z); m.scale.y = 0.7 + rnd() * 0.4; m.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+    m.castShadow = m.receiveShadow = true; scene.add(m); place(x, z, s * 0.9);
+  }
+  for (let i = 0; i < 9; i++) {
+    const a = rnd() * Math.PI * 2, d = 5 + rnd() * 16, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const s = 0.8 + rnd() * 0.5, grp = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), crateMat);
+    for (const [w, h, d2, px, py, pz] of [[1.04, .12, 1.04, 0, .44, 0], [1.04, .12, 1.04, 0, -.44, 0], [.12, 1.04, 1.04, .44, 0, 0], [.12, 1.04, 1.04, -.44, 0, 0]]) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(w * s, h * s, d2 * s), trimMat); t.position.set(px * s, py * s, pz * s); t.castShadow = true; grp.add(t);
+    }
+    grp.add(box); box.castShadow = box.receiveShadow = true;
+    grp.position.set(x, s / 2, z); grp.rotation.y = rnd() * 3; scene.add(grp); place(x, z, s * 0.78);
+    if (i % 3 === 0) { const b2 = box.clone(); b2.scale.setScalar(0.6); b2.position.set(0, s * 0.8, 0); grp.add(b2); }
+  }
+
+  // ---- robot ----
+  const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.55, metalness: 0.1, ...o });
+  const white = M(0xece8df), orange = M(0xff7a1a), dark = M(0x2b303c, { roughness: 0.7 });
+  const glow = M(0x1b1b1b, { emissive: 0x32e6ff, emissiveIntensity: 2.2 });
+  const add = (parent, geo, mat, x = 0, y = 0, z = 0) => {
+    const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+  };
+  const grp = (parent, x = 0, y = 0, z = 0) => { const o = new THREE.Group(); o.position.set(x, y, z); parent.add(o); return o; };
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const S = (r) => new THREE.SphereGeometry(r, 10, 8);
+  const C = (rt, rb, h, n = 8) => new THREE.CylinderGeometry(rt, rb, h, n);
+
+  const root = new THREE.Group(); scene.add(root);
+  const body = grp(root);                       // squash & stretch pivot (at feet)
+  const hips = grp(body, 0, 0.95, 0);
+  add(hips, B(0.56, 0.22, 0.36), dark);
+  const torso = grp(hips, 0, 0.1, 0);
+  add(torso, B(0.8, 0.7, 0.5), white, 0, 0.4, 0);
+  add(torso, B(0.82, 0.1, 0.52), orange, 0, 0.2, 0);
+  add(torso, B(0.3, 0.2, 0.06), glow, 0, 0.5, 0.27);
+  add(torso, B(0.5, 0.5, 0.2), orange, 0, 0.42, -0.34);
+  const neck = grp(torso, 0, 0.75, 0);
+  add(neck, C(0.11, 0.13, 0.14), dark, 0, 0.02, 0);
+  const head = grp(neck, 0, 0.08, 0);
+  add(head, B(0.72, 0.5, 0.56), white, 0, 0.28, 0);
+  add(head, B(0.6, 0.26, 0.1), dark, 0, 0.3, 0.27);
+  const eyes = [-1, 1].map(s => add(head, B(0.15, 0.12, 0.04), glow, s * 0.14, 0.3, 0.325));
+  for (const s of [-1, 1]) { const e = add(head, C(0.12, 0.12, 0.1, 8), orange, s * 0.4, 0.28, 0); e.rotation.z = Math.PI / 2; }
+  const antenna = grp(head, 0.18, 0.53, -0.1);
+  add(antenna, C(0.025, 0.03, 0.3, 6), dark, 0, 0.15, 0);
+  const antTip = grp(antenna, 0, 0.3, 0);
+  add(antTip, S(0.07), glow);
+  const makeArm = (s) => {
+    const sh = grp(torso, s * 0.56, 0.62, 0);
+    add(sh, S(0.15), dark);
+    add(sh, new THREE.CapsuleGeometry(0.095, 0.22, 3, 8), white, 0, -0.22, 0);
+    const el = grp(sh, 0, -0.43, 0);
+    add(el, S(0.1), dark);
+    const fa = add(el, C(0.1, 0.085, 0.34), orange, 0, -0.2, 0);
+    const hand = grp(el, 0, -0.42, 0);
+    add(hand, B(0.17, 0.17, 0.17), dark);
+    return { sh, el, hand };
+  };
+  const armL = makeArm(-1), armR = makeArm(1);
+  const makeLeg = (s) => {
+    const hp = grp(hips, s * 0.22, -0.05, 0);
+    add(hp, S(0.12), dark);
+    add(hp, B(0.2, 0.4, 0.22), white, 0, -0.22, 0);
+    const kn = grp(hp, 0, -0.42, 0);
+    add(kn, S(0.11), dark);
+    add(kn, C(0.1, 0.12, 0.34), orange, 0, -0.2, 0);
+    const an = grp(kn, 0, -0.42, 0);
+    add(an, B(0.25, 0.12, 0.42), dark, 0, 0, 0.07);
+    add(an, B(0.25, 0.04, 0.12), orange, 0, 0.0, 0.26);
+    return { hp, kn, an };
+  };
+  const legL = makeLeg(-1), legR = makeLeg(1);
+
+  // ---- dust puffs ----
+  const dust = [];
+  const dustGeo = new THREE.IcosahedronGeometry(0.12, 0);
+  for (let i = 0; i < 24; i++) {
+    const m = new THREE.Mesh(dustGeo, new THREE.MeshBasicMaterial({ color: 0xaab3c5, transparent: true, opacity: 0, depthWrite: false }));
+    m.visible = false; scene.add(m); dust.push({ m, life: 0, vy: 0 });
+  }
+  let dustI = 0;
+  function puff(x, z, n = 2) {
+    for (let k = 0; k < n; k++) {
+      const d = dust[dustI++ % dust.length];
+      d.life = 1; d.vy = 0.5 + Math.random() * 0.4; d.m.visible = true;
+      d.m.position.set(x + (Math.random() - .5) * .3, 0.08, z + (Math.random() - .5) * .3);
+      d.m.userData.vx = (Math.random() - .5) * 0.8; d.m.userData.vz = (Math.random() - .5) * 0.8;
+    }
+  }
+
+  // ---- input ----
+  const keys = new Set();
+  let jumpQueued = false, waveT = 0;
+  addEventListener('keydown', e => {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if (e.repeat) return;
+    keys.add(e.code);
+    if (e.code === 'Space') jumpQueued = true;
+    if (e.code === 'KeyE' && waveT <= 0) waveT = 2.4;
+  });
+  addEventListener('keyup', e => keys.delete(e.code));
+  addEventListener('blur', () => keys.clear());
+
+  // ---- state ----
+  const st = { vx: 0, vz: 0, yaw: 0, y: 0, vy: 0, air: 0, land: 0, move: 0, run: 0, wave: 0, phase: 0, lastStep: 0 };
+  const lerp = THREE.MathUtils.lerp, damp = THREE.MathUtils.damp;
+  const fwd = new THREE.Vector3(), right = new THREE.Vector3(), wish = new THREE.Vector3();
+  const tgt = new THREE.Vector3(), delta = new THREE.Vector3();
+
+  function update(dt, t) {
+    const k = c => keys.has(c);
+    const ix = (k('KeyD') || k('ArrowRight') ? 1 : 0) - (k('KeyA') || k('ArrowLeft') ? 1 : 0);
+    const iz = (k('KeyW') || k('ArrowUp') ? 1 : 0) - (k('KeyS') || k('ArrowDown') ? 1 : 0);
+    const running = k('ShiftLeft') || k('ShiftRight');
+    camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+    right.crossVectors(fwd, camera.up).normalize();
+    wish.set(0, 0, 0).addScaledVector(fwd, iz).addScaledVector(right, ix);
+    const has = wish.lengthSq() > 0;
+    if (has) wish.normalize();
+    const maxSp = running ? 5.6 : 2.6;
+    const acc = st.y > 0 ? 4 : 10;
+    st.vx = damp(st.vx, wish.x * (has ? maxSp : 0), acc, dt);
+    st.vz = damp(st.vz, wish.z * (has ? maxSp : 0), acc, dt);
+    const sp = Math.hypot(st.vx, st.vz);
+    if (has) {
+      const ty = Math.atan2(wish.x, wish.z);
+      let d = ty - st.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      st.yaw += d * (1 - Math.exp(-10 * dt));
+    }
+    root.position.x += st.vx * dt; root.position.z += st.vz * dt;
+    for (const c of colliders) {
+      const dx = root.position.x - c.x, dz = root.position.z - c.z, rr = c.r + 0.3, dd = Math.hypot(dx, dz);
+      if (dd < rr && st.y < 0.6) { root.position.x = c.x + dx / dd * rr; root.position.z = c.z + dz / dd * rr; }
+    }
+    // jump
+    if (jumpQueued && st.y <= 0.001) { st.vy = 6.5; st.y = 0.002; }
+    jumpQueued = false;
+    if (st.y > 0) {
+      st.vy -= 18 * dt; st.y += st.vy * dt;
+      if (st.y <= 0) { st.y = 0; st.land = 1; st.vy = 0; puff(root.position.x, root.position.z, 5); }
+    }
+    st.land = Math.max(0, st.land - dt * 3.5);
+    st.air = damp(st.air, st.y > 0 ? 1 : 0, 14, dt);
+    root.position.y = st.y; root.rotation.y = st.yaw;
+    const sy = 1 + THREE.MathUtils.clamp(st.vy * 0.03, -0.12, 0.2) - 0.22 * Math.sin(st.land * Math.PI * 0.5) * st.land;
+    body.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
+
+    // gait blend
+    st.move = damp(st.move, has && sp > 0.2 ? 1 : 0, 8, dt);
+    st.run = damp(st.run, running && has ? 1 : 0, 6, dt);
+    st.wave = damp(st.wave, waveT > 0 ? 1 : 0, 8, dt); waveT = Math.max(0, waveT - dt);
+    const m = st.move * (1 - st.air), r = st.run;
+    st.phase += dt * lerp(7, 11.5, r) * (0.4 + 0.6 * Math.min(1, sp / 2.6));
+    const p = st.phase, A = lerp(0.5, 0.9, r), idle = 1 - st.move;
+
+    // footsteps
+    const stepIdx = Math.floor(p / Math.PI);
+    if (stepIdx !== st.lastStep) { st.lastStep = stepIdx; if (m > 0.6) puff(root.position.x, root.position.z, r > .5 ? 2 : 1); }
+
+    // legs: opposite phase, knee bends only forward-swing (positive rx)
+    for (const [leg, off] of [[legL, 0], [legR, Math.PI]]) {
+      const s = Math.sin(p + off), c = Math.cos(p + off);
+      leg.hp.rotation.x = -s * A * m + st.air * -0.5;
+      leg.kn.rotation.x = Math.max(0, c) * lerp(0.9, 1.5, r) * m + (0.06 * m) + st.air * 1.0;
+      leg.an.rotation.x = -(leg.hp.rotation.x + leg.kn.rotation.x) * 0.5 * (1 - st.air) + 0.1 * st.air;
+    }
+    // arms swing opposite to same-side leg
+    const aA = lerp(0.45, 0.95, r);
+    for (const [arm, off] of [[armL, 0], [armR, Math.PI]]) {
+      const s = Math.sin(p + off);
+      arm.sh.rotation.x = s * aA * m + st.air * -2.4;
+      arm.sh.rotation.z = (arm === armL ? 1 : -1) * (-0.08 - 0.1 * Math.sin(t * 1.6) * idle) + (arm === armL ? 1 : -1) * st.air * -0.7;
+      arm.el.rotation.x = -(0.2 + r * 0.9 + Math.max(0, -s) * 0.3 * m) * (1 - st.air) - 0.4 * st.air;
+    }
+    // wave (right arm, +x side)
+    const w = st.wave, wt = 2.4 - waveT;
+    armR.sh.rotation.x = lerp(armR.sh.rotation.x, -0.3, w);
+    armR.sh.rotation.z = lerp(armR.sh.rotation.z, -2.5, w);
+    armR.el.rotation.x = lerp(armR.el.rotation.x, 0, w);
+    armR.el.rotation.z = lerp(armR.el.rotation.z, -0.5 + Math.sin(wt * 13) * 0.55, w);
+    armR.sh.rotation.z = Math.min(armR.sh.rotation.z, 3);
+    armR.el.rotation.z *= 1; if (w < 0.01) armR.el.rotation.z = 0;
+
+    // body: bob 2x per cycle, twist, lean, breathing
+    const breathe = Math.sin(t * 2.2);
+    hips.position.y = 0.95 + Math.cos(2 * p) * lerp(0.035, 0.07, r) * m - 0.12 * r * m * 0.3 - 0.12 * st.land * Math.sin(st.land * 3);
+    hips.rotation.y = Math.sin(p) * 0.08 * m;
+    hips.rotation.z = Math.sin(p) * 0.03 * m;
+    torso.rotation.y = -Math.sin(p) * lerp(0.12, 0.22, r) * m;
+    torso.rotation.x = lerp(0.04, 0.3, r) * m + 0.02 * breathe * idle + st.air * 0.1;
+    torso.scale.set(1 + 0.008 * breathe * idle, 1 + 0.02 * breathe, 1 + 0.01 * breathe * idle);
+    // head: look around when idle, stabilise when moving
+    const look = Math.sin(t * 0.55) * Math.sin(t * 0.23 + 1) * 0.75;
+    head.rotation.y = look * idle - torso.rotation.y * 0.8 * m + Math.sin(t * 7) * 0.0;
+    head.rotation.x = Math.sin(t * 0.8 + 2) * 0.08 * idle - torso.rotation.x * 0.7 + Math.abs(Math.cos(p)) * 0.03 * m;
+    head.rotation.z = Math.sin(t * 0.4) * 0.05 * idle;
+    // antenna spring-ish bob with lag
+    antenna.rotation.z = Math.sin(t * 2.1) * 0.12 - st.vx * 0.02 + Math.sin(t * 9) * 0.04 * m;
+    antenna.rotation.x = Math.sin(t * 1.7 + 1) * 0.1 - sp * 0.04 * (1 + 0.3 * Math.sin(t * 14));
+    antTip.position.y = 0.3 + Math.sin(t * 3.3) * 0.015;
+    antTip.scale.setScalar(1 + 0.15 * Math.sin(t * 4));
+    // blink
+    const bl = (t % 4) < 0.12 ? 0.1 : 1; eyes.forEach(e => e.scale.y = bl);
+
+    // dust update
+    for (const d of dust) {
+      if (d.life <= 0) continue;
+      d.life -= dt * 1.6; const mm = d.m;
+      if (d.life <= 0) { mm.visible = false; continue; }
+      mm.position.x += mm.userData.vx * dt; mm.position.z += mm.userData.vz * dt; mm.position.y += d.vy * dt * 0.4;
+      mm.scale.setScalar(1 + (1 - d.life) * 2.5); mm.material.opacity = d.life * 0.45;
+    }
+
+    // camera follows robot
+    tgt.set(root.position.x, root.position.y * 0.5 + 1.2, root.position.z);
+    delta.copy(tgt).sub(controls.target).multiplyScalar(1 - Math.exp(-6 * dt));
+    controls.target.add(delta); camera.position.add(delta);
+    sun.position.copy(root.position).add(sunOff); sun.target.position.copy(root.position);
+  }
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+  });
+
+
+  // ---- HUD (reads state only; feeds the shared input state) ----
+  const $ = id => document.getElementById(id);
+  const elState = $('state'), elEn = $('en'), elFill = $('enfill'), elEnV = $('enval'), elSteps = $('steps'), elDist = $('dist'), elFps = $('fps');
+  const caps = [...document.querySelectorAll('[data-key]')];
+  const alias = { KeyW: 'ArrowUp', KeyA: 'ArrowLeft', KeyS: 'ArrowDown', KeyD: 'ArrowRight', ShiftLeft: 'ShiftRight' };
+  const rc = $('radar'), rx = rc.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ROCKS = 18, RR = 14, RS = 44 / RR;
+  let energy = 100, steps = 0, dist = 0, prevStep = st.lastStep, lx = root.position.x, lz = root.position.z, curState = '';
+
+  // title screen: fades on first input, never blocks rendering
+  const title = $('title');
+  function startGame() { if (title.classList.contains('off')) return; title.classList.add('off'); setTimeout(() => title.remove(), 600); }
+  title.addEventListener('pointerdown', startGame);
+  $('start').addEventListener('click', startGame);
+  addEventListener('keydown', startGame);
+
+  // touch / on-screen buttons feed the same input state
+  document.querySelectorAll('[data-hold]').forEach(b => {
+    const code = b.dataset.hold;
+    const dn = e => { e.preventDefault(); keys.add(code); b.classList.add('dn'); };
+    const up = () => { keys.delete(code); b.classList.remove('dn'); };
+    b.addEventListener('pointerdown', dn);
+    ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach(ev => b.addEventListener(ev, up));
+    b.addEventListener('keydown', e => { if (e.code === 'Enter') { keys.add(code); b.classList.add('dn'); } });
+    b.addEventListener('keyup', e => { if (e.code === 'Enter') up(); });
+  });
+  document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+    startGame();
+    if (b.dataset.act === 'jump') jumpQueued = true;
+    else if (waveT <= 0) waveT = 2.4;
+  }));
+
+  function drawRadar(t) {
+    const c = 48;
+    rx.fillStyle = '#0e131d'; rx.fillRect(0, 0, 96, 96);
+    rx.strokeStyle = '#1f2c44'; rx.lineWidth = 1;
+    for (const r of [15, 30, 45]) { rx.beginPath(); rx.arc(c, c, r, 0, 7); rx.stroke(); }
+    rx.beginPath(); rx.moveTo(c, 2); rx.lineTo(c, 94); rx.moveTo(2, c); rx.lineTo(94, c); rx.stroke();
+    if (!reduce) { const a = t * 2; rx.strokeStyle = 'rgba(50,230,255,.45)'; rx.beginPath(); rx.moveTo(c, c); rx.lineTo(c + Math.cos(a) * 46, c + Math.sin(a) * 46); rx.stroke(); }
+    colliders.forEach((o, i) => {
+      const dx = (o.x - root.position.x) * RS, dz = (o.z - root.position.z) * RS;
+      if (Math.hypot(dx, dz) > 45) return;
+      rx.fillStyle = i < ROCKS ? '#9aa6bd' : '#ff7a1a';
+      const s = i < ROCKS ? 3 : 4; rx.fillRect(Math.round(c + dx - s / 2), Math.round(c + dz - s / 2), s, s);
+    });
+    // robot arrow (north-up map: +x right, +z down), heading from yaw
+    const hx = Math.sin(st.yaw), hz = Math.cos(st.yaw);
+    rx.fillStyle = '#32e6ff'; rx.beginPath();
+    rx.moveTo(c + hx * 7, c + hz * 7); rx.lineTo(c - hx * 4 - hz * 4.5, c - hz * 4 + hx * 4.5); rx.lineTo(c - hx * 4 + hz * 4.5, c - hz * 4 - hx * 4.5); rx.closePath(); rx.fill();
+    rx.fillStyle = '#ece8df'; rx.font = '8px monospace'; rx.fillText('N', 45, 10);
+  }
+
+  function hud(dt, t) {
+    const s = st.y > 0.01 ? 'JUMP' : waveT > 0.05 ? 'WAVE' : st.move > 0.5 ? (st.run > 0.5 ? 'RUN' : 'WALK') : 'IDLE';
+    if (s !== curState) { curState = s; elState.textContent = s; elState.dataset.s = s; }
+    energy = THREE.MathUtils.clamp(energy + (s === 'RUN' ? -8 : s === 'WALK' ? -1.5 : s === 'IDLE' ? 6 : 0) * dt, 0, 100);
+    elFill.style.width = energy + '%'; elEnV.textContent = Math.round(energy); elEn.classList.toggle('low', energy < 25);
+    if (st.lastStep !== prevStep) { prevStep = st.lastStep; if (st.move > 0.6 && st.air < 0.5) elSteps.textContent = ++steps; }
+    dist += Math.hypot(root.position.x - lx, root.position.z - lz); lx = root.position.x; lz = root.position.z;
+    elDist.textContent = dist.toFixed(1);
+    for (const el of caps) { const k = el.dataset.key; el.classList.toggle('on', keys.has(k) || keys.has(alias[k])); }
+    drawRadar(t);
+  }
+
+  let last = performance.now(), acc = 0, frames = 0, ready = false;
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const now = performance.now();
+    const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    frames++; acc += now - last; last = now;
+    if (acc >= 500) { elFps.textContent = 'FPS ' + Math.round(frames * 1000 / acc); frames = 0; acc = 0; }
+    update(dt, t);
+    hud(dt, t);
+    controls.update();
+    renderer.render(scene, camera);
+    if (!ready) { ready = true; window.__demoReady = true; }
+  });
+} catch (err) {
+  console.error(err);
+  document.getElementById('err').textContent = 'ERROR: ' + err.message;
+}
+</script>
+</body></html>
