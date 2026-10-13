@@ -210,6 +210,12 @@ try {
   controls.target.set(0.2, 2.4, 0);
   controls.maxPolarAngle = Math.PI * 0.52;
   controls.minDistance = 4; controls.maxDistance = 28;
+  // portrait screens: the wide framing pushes the hero off-screen, so open centred on it with a wider lens
+  if (innerWidth / innerHeight < 0.8) {
+    camera.fov = 52; camera.updateProjectionMatrix();
+    camera.position.set(2.4, 3.6, 11.5);
+    controls.target.set(2.4, 1.9, 0.5);
+  }
   controls.update();
 
   // ---------- environment ----------

@@ -452,7 +452,7 @@ try {
   // elevation legend (world-unit thresholds from recolor(): grass ~3.2, forest ~12, rock ~29, snow ~41)
   const LEG = [[0, P.sand], [3.2, P.grassA], [12, P.forest], [29, P.rock], [41, P.snow]], LMAX = 50;
   $('legbar').style.background = 'linear-gradient(90deg,' + LEG.map(([u, c]) => '#' + c.getHexString() + ' ' + (u / LMAX * 100).toFixed(1) + '%').join(',') + ',#' + P.snow.getHexString() + ' 100%)';
-  $('legt').innerHTML = LEG.map(([u]) => `<span style="left:${(u / LMAX * 100).toFixed(1)}%">${Math.round(u * M)}</span>`).join('');
+  $('legt').innerHTML = LEG.filter(([u]) => u > 0).map(([u]) => `<span style="left:${(u / LMAX * 100).toFixed(1)}%">${Math.round(u * M)}</span>`).join('');
   const rose = $('roseg'), rBear = $('rBear'), rAlt = $('rAlt'), rTime = $('rTime'), fpsN = $('fpsn');
   let lastT = '';
   function updateReadouts() {
